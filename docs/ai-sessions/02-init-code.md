@@ -31,3 +31,7 @@
 <User> One more thing: if you're running in Docker, the PID check won't work (different PID namespace) and you can't start a host process — in that case the user has to start server-loop manually, and you should ask them to. Only start it yourself when running on the host OS.
 
 <Fable5> Split the skill's "loop not running" guidance by environment (via `AC_OS`): on the host OS the agent starts the loop itself in the background; in Docker/WSL the PID check is unreliable (use an HTTP probe as a hint) and the agent must ask the user to run `server-loop.cmd` on the host.
+
+<User> Commit and push everything.
+
+<Fable5> Committed everything as 16accbf ("Add MudBlazor WASM+Server app template with Fusion, Sqlite DB, and server-loop", 42 files) and pushed to origin/main; this closing entry rides in a small follow-up commit so session 02 ends committed clean.

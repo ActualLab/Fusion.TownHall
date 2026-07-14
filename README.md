@@ -36,7 +36,7 @@ docker compose up -d
 dotnet run --project src/TownHall.Host
 ```
 
-Then open http://localhost:5136. The app creates the `fusion_townhall`
+Then open http://localhost:5136. The app creates the `townhall`
 database on first run by applying EF Core migrations from
 `src/TownHall.Db/Migrations`. Tests (`dotnet test`) need the same Postgres;
 they cover every API method twice — once against the server DI container,

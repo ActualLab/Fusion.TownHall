@@ -23,18 +23,19 @@ network, so it's reachable only from `townhall-app`. To access it, SSH to the
 VM and run:
 
 ```bash
-docker exec -it townhall-db psql -U postgres fusion_townhall
+docker exec -it townhall-db psql -U postgres townhall
 ```
 
-Data is persisted on the host in `/opt/apps/townhall-data/postgres`, so it
-survives redeploys and container recreation. The app applies EF Core
-migrations (`src/TownHall.Db/Migrations`) on startup.
+Data is persisted on the host in `/var/lib/townhall/postgres` (the standard
+FHS location for service state), so it survives redeploys and container
+recreation. The app applies EF Core migrations (`src/TownHall.Db/Migrations`)
+on startup.
 
 ## First-time host setup
 
 ```bash
 git clone https://github.com/ActualLab/Fusion.TownHall /opt/apps/townhall
-sudo mkdir -p /opt/apps/townhall-data/postgres
+sudo mkdir -p /var/lib/townhall/postgres
 cd /opt/apps/townhall/deploy
 docker compose -f docker-compose.prod.yml up -d --build
 ```

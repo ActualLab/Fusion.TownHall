@@ -23,7 +23,7 @@ public sealed class TestAppHost : IAsyncLifetime
     private ServiceProvider? _clientServices;
 
     public string ConnectionString { get; } = new NpgsqlConnectionStringBuilder(AppDbContext.DefaultConnectionString) {
-        Database = $"fusion_townhall_tests_{Guid.NewGuid():N}",
+        Database = $"townhall_tests_{Guid.NewGuid():N}",
     }.ConnectionString;
     public WebApplication App { get; private set; } = null!;
     public string BaseUrl { get; private set; } = "";

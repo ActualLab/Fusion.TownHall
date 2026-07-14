@@ -1,39 +1,116 @@
 @page "/"
+@inherits ComputedStateComponent<ImmutableArray<string>>
+@inject IRooms Rooms
+@inject ISnackbar Snackbar
 
 <PageTitle>TownHall</PageTitle>
 
-<MudText Typo="Typo.h3" GutterBottom="true">TownHall</MudText>
-<MudText Class="mb-4">
-    TownHall is a live audience Q&amp;A app ("Slido-lite"): anyone can create a town hall (a room)
-    and becomes its owner; participants post questions and upvote others' questions; the question
-    list sorts by votes, and a trending panel highlights questions gaining votes right now.
-    Owners moderate &mdash; resolve or delete questions, start/stop the session. Participants also
-    continuously signal their mood on a 5-emoji scale, visualized as a big generated SVG face
-    plus a distribution chart.
+<MudText Typo="Typo.h4" GutterBottom="true">TownHall</MudText>
+<MudText Class="mb-6" Typo="Typo.body2">
+    A live audience Q&amp;A app built on
+    <MudLink Href="https://github.com/ActualLab/Fusion" Target="_blank" Typo="Typo.body2">Fusion</MudLink>:
+    create a town hall, share the link, and watch questions, votes, and the room mood
+    update in real time in every window &mdash; no refresh button anywhere.
 </MudText>
-<MudText Class="mb-4">
-    The app exists to compare real-time frameworks: the same app will be implemented several times
-    (.NET + <MudLink Href="https://github.com/ActualLab/Fusion" Target="_blank">Fusion</MudLink>,
-    plain .NET, .NET + SignalR, possibly TypeScript and Elixir stacks) to measure the code delta
-    each framework produces. It's a Blazor app (WebAssembly + Server-Side Blazor) similar to the
-    TodoApp from
-    <MudLink Href="https://github.com/ActualLab/Fusion.Samples" Target="_blank">Fusion Samples</MudLink>.
-</MudText>
-<MudAlert Severity="Severity.Info" Class="mb-4" ContentAlignment="HorizontalAlignment.Start">
-    This is the Fusion-based implementation &mdash; the first one to be built; the other versions
-    will be derived from it. Everything here updates in real time &mdash; like the server clock below.
-</MudAlert>
-<ServerTimeBadge />
-<RenderModeSwitch />
 
-<MudText Typo="Typo.h5" GutterBottom="true">Related repositories</MudText>
-<MudList T="string" ReadOnly="true">
-    <MudListItem Icon="@Icons.Material.Filled.Sync">
-        <MudLink Href="https://github.com/ActualLab/Fusion" Target="_blank">ActualLab.Fusion</MudLink>
-        &mdash; the real-time state synchronization framework this sample is built to showcase
-    </MudListItem>
-    <MudListItem Icon="@Icons.Material.Filled.Apps">
-        <MudLink Href="https://github.com/ActualLab/Fusion.Samples" Target="_blank">ActualLab.Fusion.Samples</MudLink>
-        &mdash; other Fusion samples, including the TodoApp this app's structure follows
-    </MudListItem>
-</MudList>
+@if (_createdRoom is { } created) {
+    <MudPaper Class="pa-4 mb-6" Elevation="3">
+        <MudText Typo="Typo.h6" GutterBottom="true">Your town hall is ready 🎉</MudText>
+        <MudText Typo="Typo.body2" Class="mb-1">Participant link — share this with your audience:</MudText>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mb-3">
+            <MudTextField Value="@RoomUrl(created.Id)" ReadOnly="true" Margin="Margin.Dense" Variant="Variant.Outlined" />
+            <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
+                           OnClick="@(() => Copy(RoomUrl(created.Id), "Participant link"))" />
+        </MudStack>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@($"/room/{created.Id}")">
+                Enter your town hall
+            </MudButton>
+            <MudButton Variant="Variant.Text" Size="Size.Small" StartIcon="@Icons.Material.Filled.ContentCopy"
+                       OnClick="@(() => Copy(OwnerUrl(created.Id), "Owner link"))">
+                Copy owner link
+            </MudButton>
+        </MudStack>
+    </MudPaper>
+}
+else {
+    <MudPaper Class="pa-4 mb-6" Elevation="3">
+        <MudText Typo="Typo.h6" GutterBottom="true">Create a town hall</MudText>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap">
+            <MudTextField @bind-Value="_title" Label="Title" Immediate="true" MaxLength="80"
+                          Variant="Variant.Outlined" Margin="Margin.Dense" Style="min-width: 20rem" />
+            <MudSelect @bind-Value="_durationMinutes" Label="Duration" Variant="Variant.Outlined"
+                       Margin="Margin.Dense" Style="width: 8rem">
+                <MudSelectItem Value="15">15 min</MudSelectItem>
+                <MudSelectItem Value="60">1 h</MudSelectItem>
+                <MudSelectItem Value="240">4 h</MudSelectItem>
+                <MudSelectItem Value="480">8 h</MudSelectItem>
+            </MudSelect>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(_title.Trim().Length == 0)"
+                       OnClick="Create">
+                Create
+            </MudButton>
+        </MudStack>
+        <MudCheckBox @bind-Value="_isPrivate" Label="Private — hidden from the town hall list below" Dense="true" />
+    </MudPaper>
+}
+
+<MudText Typo="Typo.h6" GutterBottom="true">Active town halls</MudText>
+@if (State.ValueOrDefault is { IsDefault: false } roomIds) {
+    @if (roomIds.Length == 0) {
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">
+            No active town halls yet — create the first one above!
+        </MudText>
+    }
+    @foreach (var roomId in roomIds) {
+        <RoomListRow @key="@roomId" RoomId="@roomId" />
+    }
+}
+else {
+    <MudProgressCircular Indeterminate="true" Size="Size.Small" />
+}
+
+@code {
+    private string _title = "";
+    private int _durationMinutes = 60;
+    private bool _isPrivate;
+    private Room? _createdRoom;
+    private string? _createdOwnerToken;
+
+    protected override void OnInitialized()
+    {
+        // Local fields (title, post-create panel, etc.) change via events,
+        // which don't re-render state-driven components by default
+        MustRenderAfterEvent = true;
+    }
+
+    protected override async Task<ImmutableArray<string>> ComputeState(CancellationToken cancellationToken)
+    {
+        var session = await CircuitHub.SessionResolver.GetSession(cancellationToken);
+        return await Rooms.ListActiveIds(session, cancellationToken);
+    }
+
+    private async Task Create()
+    {
+        var command = new Rooms_Create(Session, _title, TimeSpan.FromMinutes(_durationMinutes), _isPrivate);
+        var result = await UICommander.Run(command);
+        if (result.HasError)
+            return;
+
+        _createdRoom = result.Value;
+        _createdOwnerToken = await Rooms.GetOwnerToken(Session, result.Value.Id);
+        _title = "";
+    }
+
+    private string RoomUrl(string roomId)
+        => Nav.ToAbsoluteUri($"/room/{roomId}").ToString();
+
+    private string OwnerUrl(string roomId)
+        => Nav.ToAbsoluteUri($"/room/{roomId}/own/{_createdOwnerToken}").ToString();
+
+    private async Task Copy(string text, string what)
+    {
+        await JS.InvokeVoidAsync("townHall.copyText", text);
+        Snackbar.Add($"{what} copied to clipboard", Severity.Success);
+    }
+}

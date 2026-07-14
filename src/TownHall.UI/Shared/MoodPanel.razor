@@ -1,0 +1,65 @@
+@using TownHall.UI.Services
+@inherits ComputedStateComponent<MoodPanel.Model>
+@inject IMood Mood
+
+@{
+    var m = State.ValueOrDefault;
+    var summary = m?.Summary ?? new MoodSummary([0, 0, 0, 0, 0], 0, null);
+    var maxCount = Math.Max(1, summary.Counts.IsDefault ? 1 : summary.Counts.Max());
+}
+
+<MudPaper Class="pa-3 mb-4" Elevation="1">
+    <MudText Typo="Typo.subtitle1" Class="mb-2">Room mood</MudText>
+    <div style="width: 160px; margin: 0 auto;">
+        @((MarkupString)MoodFaceSvg.Render(summary.Average))
+    </div>
+    @if (summary.VoterCount == 0) {
+        <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mb-2" Align="Align.Center">
+            no mood signals yet
+        </MudText>
+    }
+    <div style="display: flex; align-items: flex-end; justify-content: space-around; height: 100px;" class="mb-2">
+        @for (var level = 1; level <= 5; level++) {
+            var count = summary.Counts.IsDefault ? 0 : summary.Counts[level - 1];
+            <div style="display: flex; flex-direction: column; align-items: center; width: 18%;">
+                <span style="font-size: 0.75rem;">@count</span>
+                <div style="width: 100%; height: @(2 + 60.0 * count / maxCount)px; background: var(--mud-palette-primary); border-radius: 3px 3px 0 0;"></div>
+                <span>@Emojis[level - 1]</span>
+            </div>
+        }
+    </div>
+    <MudStack Row="true" Justify="Justify.SpaceAround" Spacing="0">
+        @for (var level = 1; level <= 5; level++) {
+            var value = level;
+            var isOwn = m?.OwnLevel == value;
+            <MudButton Variant="@(isOwn ? Variant.Filled : Variant.Text)" Size="Size.Small"
+                       Color="@(isOwn ? Color.Primary : Color.Default)"
+                       Disabled="@(!IsLive)" Style="font-size: 1.3rem; min-width: 3rem"
+                       OnClick="@(() => SetMood(value))">
+                @Emojis[value - 1]
+            </MudButton>
+        }
+    </MudStack>
+</MudPaper>
+
+@code {
+    private static readonly string[] Emojis = ["😞", "🙁", "😐", "🙂", "😄"];
+
+    [Parameter, EditorRequired] public string RoomId { get; set; } = "";
+    [Parameter] public bool IsLive { get; set; }
+
+    protected override async Task<Model> ComputeState(CancellationToken cancellationToken)
+    {
+        var session = await CircuitHub.SessionResolver.GetSession(cancellationToken);
+        var summary = await Mood.GetSummary(session, RoomId, cancellationToken);
+        var ownLevel = await Mood.GetOwn(session, RoomId, cancellationToken);
+        return new Model(summary, ownLevel);
+    }
+
+    private Task SetMood(int level)
+        => UICommander.Run(new Mood_Set(Session, RoomId, level));
+
+    // Nested types
+
+    public sealed record Model(MoodSummary Summary, int? OwnLevel);
+}

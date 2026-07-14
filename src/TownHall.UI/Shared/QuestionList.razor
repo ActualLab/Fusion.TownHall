@@ -1,0 +1,33 @@
+@inherits ComputedStateComponent<ImmutableArray<long>>
+@inject IQuestions Questions
+
+@if (State.ValueOrDefault is { IsDefault: false } indexes) {
+    @if (indexes.Length == 0) {
+        <MudText Typo="Typo.body2" Class="mud-text-secondary pa-2">
+            @(Tab == QuestionTab.Resolved ? "Nothing resolved yet." : "No questions yet — ask the first one!")
+        </MudText>
+    }
+    @foreach (var index in indexes) {
+        <QuestionCard @key="@index" RoomId="@RoomId" Index="@index" IsOwner="@IsOwner" IsLive="@IsLive" />
+    }
+}
+else {
+    <MudProgressCircular Indeterminate="true" Size="Size.Small" />
+}
+
+@code {
+    [Parameter, EditorRequired] public string RoomId { get; set; } = "";
+    [Parameter] public QuestionTab Tab { get; set; }
+    [Parameter] public bool IsOwner { get; set; }
+    [Parameter] public bool IsLive { get; set; }
+
+    protected override async Task<ImmutableArray<long>> ComputeState(CancellationToken cancellationToken)
+    {
+        var session = await CircuitHub.SessionResolver.GetSession(cancellationToken);
+        return Tab switch {
+            QuestionTab.Top => await Questions.GetTopOpenIds(session, RoomId, 50, cancellationToken),
+            QuestionTab.Recent => await Questions.ListOpenIds(session, RoomId, cancellationToken),
+            _ => await Questions.ListResolvedIds(session, RoomId, cancellationToken),
+        };
+    }
+}

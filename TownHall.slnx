@@ -4,4 +4,7 @@
     <Project Path="src/TownHall.Host/TownHall.Host.csproj" />
     <Project Path="src/TownHall.UI/TownHall.UI.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/TownHall.Tests/TownHall.Tests.csproj" />
+  </Folder>
 </Solution>

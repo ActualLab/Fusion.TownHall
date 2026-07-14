@@ -11,22 +11,28 @@
 @code {
     private ISessionResolver SessionResolver => CircuitHub.SessionResolver;
 
-    [Parameter] public string SessionId { get; set; } = "";
     [Parameter] public string RenderModeKey { get; set; } = "";
 
     protected override void OnInitialized()
     {
         if (OSInfo.IsWebAssembly) {
-            // RPC auto-substitutes Session.Default to the cookie-based one on the server side for every call
-            SessionResolver.Session = Session.Default;
             // That's how WASM app starts hosted services
             var rootServices = Services.Commander().Services;
             _ = rootServices.HostedServices().Start();
         }
-        else {
-            SessionResolver.Session = new Session(SessionId);
-        }
         if (CircuitHub.IsInteractive)
             CircuitHub.Initialize(this.GetDispatcher(), RenderModeDef.GetOrDefault(RenderModeKey));
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        // The session is a per-tab GUID from sessionStorage (multiple tabs = multiple users);
+        // components' ComputeState awaits SessionResolver.GetSession(), so nothing renders
+        // real data until this assignment happens.
+        var sessionId = await JS.InvokeAsync<string>("townHall.getSessionId");
+        SessionResolver.Session = new Session(sessionId);
     }
 }

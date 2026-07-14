@@ -1,0 +1,112 @@
+@using TownHall.UI.Services
+@inherits ComputedStateComponent<QuestionCard.Model>
+@inject IQuestions Questions
+
+@{
+    var m = State.ValueOrDefault;
+    if (m?.Question is not { } question)
+        return;
+
+    var isResolved = m.Resolution != null;
+}
+
+<MudPaper id="@($"q-{Index}")" Class="pa-3 mb-2" Elevation="1">
+    <MudText Typo="Typo.body1" Class="mb-1">@question.Text</MudText>
+    @if (m.Resolution is { } resolution) {
+        <MudAlert Severity="Severity.Success" Dense="true" Class="my-2">
+            Resolved @TimeText.Ago(resolution.ResolvedAt)@(resolution.Note.Length > 0 ? $": {resolution.Note}" : "")
+        </MudAlert>
+    }
+    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+        <MudText Typo="Typo.caption" Class="mud-text-secondary">
+            — by @question.AuthorName · @TimeText.Ago(question.PostedAt)
+        </MudText>
+        <MudSpacer />
+        @if (IsOwner) {
+            @if (_isConfirmingDelete) {
+                <MudText Typo="Typo.caption">Delete?</MudText>
+                <MudButton Size="Size.Small" Color="Color.Error" OnClick="Delete">Yes</MudButton>
+                <MudButton Size="Size.Small" OnClick="@(() => _isConfirmingDelete = false)">No</MudButton>
+            }
+            else {
+                <MudTooltip Text="@(isResolved ? "Edit note" : "Resolve")">
+                    <MudIconButton Icon="@Icons.Material.Filled.Check" Size="Size.Small"
+                                   OnClick="@(() => { _note = m.Resolution?.Note ?? ""; _isResolving = true; })" />
+                </MudTooltip>
+                <MudTooltip Text="Delete">
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                   OnClick="@(() => _isConfirmingDelete = true)" />
+                </MudTooltip>
+            }
+        }
+        <MudButton StartIcon="@Icons.Material.Filled.ThumbUp" Size="Size.Small"
+                   Variant="@(m.HasOwnVote ? Variant.Filled : Variant.Outlined)"
+                   Color="Color.Primary"
+                   Disabled="@(!IsLive || isResolved)"
+                   OnClick="ToggleVote">
+            @m.VoteCount
+        </MudButton>
+    </MudStack>
+    @if (_isResolving) {
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mt-2">
+            <MudTextField @bind-Value="_note" Immediate="true" MaxLength="500" Margin="Margin.Dense"
+                          Label="Resolution note (optional)" Variant="Variant.Outlined" />
+            <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary" OnClick="Resolve">
+                Resolve
+            </MudButton>
+            <MudButton Size="Size.Small" OnClick="@(() => _isResolving = false)">Cancel</MudButton>
+        </MudStack>
+    }
+</MudPaper>
+
+@code {
+    private bool _isResolving;
+    private bool _isConfirmingDelete;
+    private string _note = "";
+
+    [Parameter, EditorRequired] public string RoomId { get; set; } = "";
+    [Parameter, EditorRequired] public long Index { get; set; }
+    [Parameter] public bool IsOwner { get; set; }
+    [Parameter] public bool IsLive { get; set; }
+
+    protected override void OnInitialized()
+    {
+        // The resolve form and delete confirmation are local state changed via events
+        MustRenderAfterEvent = true;
+    }
+
+    protected override async Task<Model> ComputeState(CancellationToken cancellationToken)
+    {
+        var session = await CircuitHub.SessionResolver.GetSession(cancellationToken);
+        var question = await Questions.Get(session, RoomId, Index, cancellationToken);
+        if (question == null)
+            return new Model(null, 0, false, null);
+
+        var voteCount = await Questions.GetVoteCount(session, RoomId, Index, cancellationToken);
+        var hasOwnVote = await Questions.HasOwnVote(session, RoomId, Index, cancellationToken);
+        var resolution = await Questions.GetResolution(session, RoomId, Index, cancellationToken);
+        return new Model(question, voteCount, hasOwnVote, resolution);
+    }
+
+    private Task ToggleVote()
+    {
+        var hasOwnVote = State.ValueOrDefault?.HasOwnVote ?? false;
+        return UICommander.Run(new Questions_Vote(Session, RoomId, Index, !hasOwnVote));
+    }
+
+    private Task Resolve()
+    {
+        _isResolving = false;
+        return UICommander.Run(new Questions_Resolve(Session, RoomId, Index, _note));
+    }
+
+    private Task Delete()
+    {
+        _isConfirmingDelete = false;
+        return UICommander.Run(new Questions_Delete(Session, RoomId, Index));
+    }
+
+    // Nested types
+
+    public sealed record Model(Question? Question, int VoteCount, bool HasOwnVote, Resolution? Resolution);
+}

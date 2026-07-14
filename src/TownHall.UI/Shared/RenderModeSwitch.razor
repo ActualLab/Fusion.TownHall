@@ -1,12 +1,9 @@
 @inject RenderModeHelper RenderModeHelper
 
-<MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-8">
-    <MudText>Render mode:</MudText>
-    <MudMenu Label="@RenderModeHelper.GetCurrentModeTitle()"
-             Variant="Variant.Outlined" Size="Size.Small"
-             EndIcon="@Icons.Material.Filled.KeyboardArrowDown">
-        @foreach (var mode in RenderModeDef.All) {
-            <MudMenuItem OnClick="@(() => RenderModeHelper.ChangeMode(mode))">@mode.Title</MudMenuItem>
-        }
-    </MudMenu>
-</MudStack>
+<MudMenu Label="@RenderModeHelper.GetCurrentModeTitle()"
+         Color="Color.Inherit" Size="Size.Small"
+         EndIcon="@Icons.Material.Filled.KeyboardArrowDown">
+    @foreach (var mode in RenderModeDef.All) {
+        <MudMenuItem OnClick="@(() => RenderModeHelper.ChangeMode(mode))">@mode.Title</MudMenuItem>
+    }
+</MudMenu>

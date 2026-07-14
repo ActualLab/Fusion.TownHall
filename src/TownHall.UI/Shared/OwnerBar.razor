@@ -1,0 +1,93 @@
+@using TownHall.UI.Services
+@inherits ComputedStateComponent<string?>
+@inject IRooms Rooms
+@inject ISnackbar Snackbar
+
+<MudExpansionPanels Class="mb-4" Elevation="2">
+    <MudExpansionPanel Text="Owner tools" Dense="true">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap">
+            <MudButton Variant="Variant.Filled" Size="Size.Small"
+                       Color="@(Room.Status == RoomStatus.Live ? Color.Warning : Color.Success)"
+                       Disabled="@IsEnded"
+                       OnClick="ToggleLive">
+                @(Room.Status == RoomStatus.Live ? "Stop" : "Start")
+            </MudButton>
+            <MudCheckBox Value="@Room.IsPrivate" T="bool" ValueChanged="SetIsPrivate" Dense="true"
+                         Disabled="@IsEnded" Label="Private" />
+            <MudSpacer />
+            <MudButton Variant="Variant.Text" Size="Size.Small" StartIcon="@Icons.Material.Filled.ContentCopy"
+                       Disabled="@(State.ValueOrDefault == null)"
+                       OnClick="CopyOwnerLink">
+                Copy owner link
+            </MudButton>
+        </MudStack>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap" Class="mt-2">
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">@ClosingTimeHint</MudText>
+            <MudButton Variant="Variant.Outlined" Size="Size.Small" Disabled="@IsEnded"
+                       OnClick="@(() => AdjustDuration(-5))">
+                −5 min
+            </MudButton>
+            <MudButton Variant="Variant.Outlined" Size="Size.Small"
+                       OnClick="@(() => AdjustDuration(5))">
+                +5 min
+            </MudButton>
+        </MudStack>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mt-2">
+            <MudTextField @bind-Value="_title" Immediate="true" MaxLength="80" Margin="Margin.Dense"
+                          Label="Title" Variant="Variant.Outlined" Disabled="@IsEnded" />
+            <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary"
+                       Disabled="@(IsEnded || _title.Trim().Length == 0 || _title.Trim() == Room.Title)"
+                       OnClick="Rename">
+                Rename
+            </MudButton>
+        </MudStack>
+    </MudExpansionPanel>
+</MudExpansionPanels>
+
+@code {
+    private string _title = "";
+
+    [Parameter, EditorRequired] public Room Room { get; set; } = null!;
+
+    private bool IsEnded => Room.Status == RoomStatus.Ended;
+
+    private string ClosingTimeHint => IsEnded
+        ? "Ended — +5 min revives it for 5 minutes from now:"
+        : $"Closing time ({TimeText.Left(Room.ClosesAt)}):";
+
+    protected override void OnInitialized()
+    {
+        // The title field and panel expansion are local state changed via events
+        MustRenderAfterEvent = true;
+        _title = Room.Title;
+    }
+
+    protected override async Task<string?> ComputeState(CancellationToken cancellationToken)
+    {
+        var session = await CircuitHub.SessionResolver.GetSession(cancellationToken);
+        return await Rooms.GetOwnerToken(session, Room.Id, cancellationToken);
+    }
+
+    private Task ToggleLive()
+        => UICommander.Run(new Rooms_SetLive(Session, Room.Id, Room.Status != RoomStatus.Live));
+
+    private Task SetIsPrivate(bool isPrivate)
+        => UICommander.Run(new Rooms_SetIsPrivate(Session, Room.Id, isPrivate));
+
+    private Task AdjustDuration(int minutes)
+        => UICommander.Run(new Rooms_AdjustDuration(Session, Room.Id, TimeSpan.FromMinutes(minutes)));
+
+    private Task Rename()
+        => UICommander.Run(new Rooms_SetTitle(Session, Room.Id, _title));
+
+    private async Task CopyOwnerLink()
+    {
+        // The owner link is never displayed — it goes straight to the clipboard
+        if (State.ValueOrDefault is not { } token)
+            return;
+
+        var url = Nav.ToAbsoluteUri($"/room/{Room.Id}/own/{token}").ToString();
+        await JS.InvokeVoidAsync("townHall.copyText", url);
+        Snackbar.Add("Owner link copied to clipboard", Severity.Success);
+    }
+}

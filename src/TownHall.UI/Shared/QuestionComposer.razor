@@ -1,0 +1,46 @@
+@inherits CircuitHubComponentBase
+@inject IQuestions Questions
+@inject IDialogService DialogService
+
+<MudPaper Class="pa-3 mb-4" Elevation="1">
+    <MudTextField @bind-Value="_text" Immediate="true" Lines="2" MaxLength="500" Counter="500"
+                  Label="Ask a question" HelperText="Enter posts your question"
+                  Variant="Variant.Outlined" Disabled="@(!IsLive)"
+                  OnKeyUp="OnKeyUp" />
+    <MudStack Row="true" Class="mt-2">
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                   Disabled="@(!IsLive || _text.Trim().Length == 0)" OnClick="ConfirmAndPost">
+            Post
+        </MudButton>
+    </MudStack>
+</MudPaper>
+
+@code {
+    private string _text = "";
+
+    [Parameter, EditorRequired] public string RoomId { get; set; } = "";
+    [Parameter] public bool IsLive { get; set; }
+
+    // On key UP, so the Enter that opens the dialog can't also trigger its default button
+    private Task OnKeyUp(KeyboardEventArgs e)
+        => e.Key == "Enter" ? ConfirmAndPost() : Task.CompletedTask;
+
+    private async Task ConfirmAndPost()
+    {
+        // Questions are single-paragraph: line feeds and whitespace runs collapse to single spaces
+        var text = string.Join(" ", _text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+        _text = text;
+        if (text.Length == 0)
+            return;
+
+        var isConfirmed = await DialogService.ShowMessageBoxAsync(
+            "Post this question?", text, yesText: "Post", cancelText: "Keep editing");
+        if (isConfirmed != true)
+            return;
+
+        var result = await UICommander.Run(new Questions_Post(Session, RoomId, text));
+        if (!result.HasError)
+            _text = "";
+    }
+}

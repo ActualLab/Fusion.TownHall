@@ -88,6 +88,10 @@ void ConfigureServices()
             });
             operations.AddFileSystemOperationLogWatcher();
         });
+        // Batched by-key lookups for compute-method reads
+        db.AddEntityResolver<string, DbRoom>();
+        db.AddEntityResolver<string, DbParticipant>();
+        db.AddEntityResolver<string, DbQuestion>();
         // ReSharper disable once VariableHidesOuterVariable
         db.Services.AddTransientDbContextFactory<AppDbContext>((c, db) => {
             var appTempDir = FilePath.GetApplicationTempDirectory("", true);
@@ -102,7 +106,12 @@ void ConfigureServices()
     var fusion = services.AddFusion(RpcServiceMode.Server, true);
     fusion.AddWebServer();
     fusion.AddOperationReprocessor();
-    fusion.AddServer<ITime, TimeService>();
+    fusion.AddServer<IParticipants, ParticipantsService>();
+    fusion.AddServer<IRooms, RoomsService>();
+    fusion.AddServer<IQuestions, QuestionsService>();
+    fusion.AddServer<IRoomStats, RoomStatsService>();
+    fusion.AddServer<IPresence, PresenceService>();
+    fusion.AddServer<IMood, MoodService>();
 
     // Web
     services.AddServerSideBlazor(o => o.DetailedErrors = true);

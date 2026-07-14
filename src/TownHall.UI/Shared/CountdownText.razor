@@ -1,0 +1,30 @@
+@using TownHall.UI.Services
+@implements IDisposable
+
+@{
+    var left = ClosesAt - Moment.Now;
+    // Once the 10-minute resurrection grace period is over, the clock disappears
+    if (left < -GracePeriod)
+        return;
+
+    var isClosingSoon = left < TimeSpan.FromMinutes(5);
+}
+<MudText Typo="Typo.h5"
+         Style="@(isClosingSoon ? "color: var(--mud-palette-error); font-weight: 700;" : "")">
+    @TimeText.Countdown(left) @(left.Ticks < 0 ? "overtime" : "left")
+</MudText>
+
+@code {
+    private static readonly TimeSpan GracePeriod = TimeSpan.FromMinutes(10);
+
+    private System.Threading.Timer? _timer;
+
+    [Parameter] public Moment ClosesAt { get; set; }
+
+    protected override void OnInitialized()
+        // Pure client-side ticking over the already-known ClosesAt
+        => _timer = new System.Threading.Timer(_ => _ = InvokeAsync(StateHasChanged), null, 1000, 1000);
+
+    public void Dispose()
+        => _timer?.Dispose();
+}

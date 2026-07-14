@@ -1,0 +1,45 @@
+@inherits ComputedStateComponent<ImmutableArray<TrendingPanel.Row>>
+@inject IRoomStats RoomStats
+@inject IQuestions Questions
+
+<MudPaper Class="pa-3" Elevation="1">
+    <MudText Typo="Typo.subtitle1" Class="mb-2">Trending 🔥</MudText>
+    @if (State.ValueOrDefault is { IsDefault: false } rows) {
+        @if (rows.Length == 0) {
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">Nothing's trending right now.</MudText>
+        }
+        @foreach (var row in rows) {
+            <div style="cursor: pointer;" class="mb-2" @key="@row.Index"
+                 @onclick="@(() => JS.InvokeVoidAsync("townHall.scrollTo", $"q-{row.Index}"))">
+                <MudText Typo="Typo.body2" Style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    @row.Text
+                </MudText>
+                <MudText Typo="Typo.caption" Color="Color.Primary">+@row.RecentVoteCount in last 5 min</MudText>
+            </div>
+        }
+    }
+    else {
+        <MudProgressCircular Indeterminate="true" Size="Size.Small" />
+    }
+</MudPaper>
+
+@code {
+    [Parameter, EditorRequired] public string RoomId { get; set; } = "";
+
+    protected override async Task<ImmutableArray<Row>> ComputeState(CancellationToken cancellationToken)
+    {
+        var session = await CircuitHub.SessionResolver.GetSession(cancellationToken);
+        var trending = await RoomStats.GetTrending(session, RoomId, 5, cancellationToken);
+        var rows = new List<Row>(trending.Length);
+        foreach (var t in trending) {
+            var question = await Questions.Get(session, RoomId, t.QuestionIndex, cancellationToken);
+            if (question != null)
+                rows.Add(new Row(t.QuestionIndex, question.Text, t.RecentVoteCount));
+        }
+        return [..rows];
+    }
+
+    // Nested types
+
+    public sealed record Row(long Index, string Text, int RecentVoteCount);
+}

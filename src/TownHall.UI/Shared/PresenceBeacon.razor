@@ -1,0 +1,45 @@
+@using ActualLab.Rpc
+@inherits CircuitHubComponentBase
+@implements IDisposable
+
+@code {
+    private readonly CancellationTokenSource _disposeCts = new();
+
+    [Parameter, EditorRequired] public string RoomId { get; set; } = "";
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+            _ = Beat(_disposeCts.Token);
+    }
+
+    public void Dispose()
+    {
+        _disposeCts.Cancel();
+        _disposeCts.Dispose();
+    }
+
+    // Private methods
+
+    private async Task Beat(CancellationToken cancellationToken)
+    {
+        // The heartbeat: one Presence_Watch on page open, then every 15 s while it stays open
+        var session = await CircuitHub.SessionResolver.GetSession(cancellationToken);
+        var commander = Services.Commander();
+        var roomId = RoomId;
+        while (!cancellationToken.IsCancellationRequested) {
+            try {
+                await commander.Call(new Presence_Watch(session, roomId), cancellationToken);
+            }
+            catch (Exception) {
+                // Transient failure; the next beat retries anyway
+            }
+            try {
+                await Task.Delay(TimeSpan.FromSeconds(15), cancellationToken);
+            }
+            catch (OperationCanceledException) {
+                return;
+            }
+        }
+    }
+}

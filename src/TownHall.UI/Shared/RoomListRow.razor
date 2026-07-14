@@ -1,0 +1,44 @@
+@using TownHall.UI.Services
+@inherits ComputedStateComponent<RoomListRow.Model>
+@inject IRooms Rooms
+@inject IRoomStats RoomStats
+
+@{
+    var m = State.ValueOrDefault;
+    if (m?.Room is not { } room)
+        return;
+}
+
+<MudPaper Class="pa-3 mb-2" Elevation="1">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap">
+        <MudLink Href="@($"/room/{room.Id}")" Typo="Typo.subtitle1">@room.Title</MudLink>
+        <MudChip T="string" Size="Size.Small"
+                 Color="@(room.Status == RoomStatus.Live ? Color.Success : Color.Default)">
+            @room.Status
+        </MudChip>
+        <MudSpacer />
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">@TimeText.Left(room.ClosesAt)</MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">
+            @m.Stats.OpenQuestionCount open · @m.Stats.AudienceCount here
+        </MudText>
+    </MudStack>
+</MudPaper>
+
+@code {
+    [Parameter, EditorRequired] public string RoomId { get; set; } = "";
+
+    protected override async Task<Model> ComputeState(CancellationToken cancellationToken)
+    {
+        var session = await CircuitHub.SessionResolver.GetSession(cancellationToken);
+        var room = await Rooms.Get(session, RoomId, cancellationToken);
+        if (room == null)
+            return new Model(null, new RoomStats(0, 0, 0, 0));
+
+        var stats = await RoomStats.GetStats(session, RoomId, cancellationToken);
+        return new Model(room, stats);
+    }
+
+    // Nested types
+
+    public sealed record Model(Room? Room, RoomStats Stats);
+}

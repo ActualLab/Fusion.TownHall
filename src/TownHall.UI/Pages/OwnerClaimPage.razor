@@ -1,0 +1,40 @@
+@page "/room/{RoomId}/own/{Token}"
+@inherits CircuitHubComponentBase
+
+<PageTitle>TownHall</PageTitle>
+
+@if (_error is { } error) {
+    <MudAlert Severity="Severity.Error" Class="mb-4">@error</MudAlert>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/">Go home</MudButton>
+}
+else {
+    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+        <MudProgressCircular Indeterminate="true" Size="Size.Small" />
+        <MudText>Claiming ownership...</MudText>
+    </MudStack>
+}
+
+@code {
+    private string? _error;
+
+    [Parameter] public string RoomId { get; set; } = "";
+    [Parameter] public string Token { get; set; } = "";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        var session = await CircuitHub.SessionResolver.GetSession();
+        try {
+            await Services.Commander().Call(new Rooms_ClaimOwnership(session, RoomId, Token));
+        }
+        catch (Exception e) {
+            _error = e.Message;
+            StateHasChanged();
+            return;
+        }
+        // replace: true keeps the owner token out of the browser history
+        Nav.NavigateTo($"/room/{RoomId}", new NavigationOptions { ReplaceHistoryEntry = true });
+    }
+}

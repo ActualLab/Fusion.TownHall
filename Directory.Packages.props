@@ -6,7 +6,6 @@
     <AspNetCoreVersion>[10.0.1,)</AspNetCoreVersion>
     <BlazorVersion>$(AspNetCoreVersion)</BlazorVersion>
     <EntityFrameworkCoreVersion>[10.0.1,)</EntityFrameworkCoreVersion>
-    <MemoryPackVersion>1.21.4</MemoryPackVersion>
     <MudBlazorVersion>9.7.0</MudBlazorVersion>
   </PropertyGroup>
   <!-- Fusion packages -->
@@ -20,11 +19,16 @@
   </ItemGroup>
   <!-- Other packages -->
   <ItemGroup>
-    <PackageVersion Include="MemoryPack.Generator" Version="$(MemoryPackVersion)" />
     <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly" Version="$(BlazorVersion)" />
     <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="$(BlazorVersion)" PrivateAssets="all" />
     <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="$(BlazorVersion)" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="$(EntityFrameworkCoreVersion)" />
     <PackageVersion Include="MudBlazor" Version="$(MudBlazorVersion)" />
+  </ItemGroup>
+  <!-- Test time only -->
+  <ItemGroup>
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.13.0" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
   </ItemGroup>
 </Project>

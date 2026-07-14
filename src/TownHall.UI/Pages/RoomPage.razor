@@ -1,0 +1,92 @@
+@page "/room/{RoomId}"
+@inherits ComputedStateComponent<RoomPage.Model>
+@inject IRooms Rooms
+@inject IRoomStats RoomStats
+
+<PageTitle>TownHall</PageTitle>
+
+@{
+    var m = State.ValueOrDefault;
+}
+@if (m == null) {
+    <MudProgressCircular Indeterminate="true" Size="Size.Small" />
+    return;
+}
+@if (m.Room is not { } room) {
+    <MudAlert Severity="Severity.Warning" Class="mb-4">This town hall doesn't exist.</MudAlert>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/">Go home</MudButton>
+    return;
+}
+
+<PresenceBeacon RoomId="@RoomId" />
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap" Class="mb-1">
+    <MudText Typo="Typo.h5">@room.Title</MudText>
+    <MudChip T="string" Size="Size.Small"
+             Color="@(room.Status switch { RoomStatus.Live => Color.Success, RoomStatus.Ended => Color.Error, _ => Color.Default })">
+        @room.Status
+    </MudChip>
+    @if (room.Status != RoomStatus.Stopped) {
+        <CountdownText ClosesAt="@room.ClosesAt" />
+    }
+    <MudSpacer />
+    <MudText Typo="Typo.body2" Class="mud-text-secondary">
+        @m.Stats.AudienceCount here · @m.Stats.OpenQuestionCount open ·
+        @m.Stats.ResolvedQuestionCount resolved · @m.Stats.TotalVoteCount votes
+    </MudText>
+</MudStack>
+
+@if (room.Status == RoomStatus.Stopped) {
+    <MudAlert Severity="Severity.Info" Class="mb-4">This town hall is paused — hold tight!</MudAlert>
+}
+else if (room.Status == RoomStatus.Ended) {
+    <MudAlert Severity="Severity.Normal" Class="mb-4">This town hall has ended.</MudAlert>
+}
+
+@if (m.IsOwner) {
+    <OwnerBar Room="@room" />
+}
+
+<MudGrid>
+    <MudItem xs="12" md="8">
+        <QuestionComposer RoomId="@RoomId" IsLive="@(room.Status == RoomStatus.Live)" />
+        <MudTabs Elevation="1" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pt-3">
+            <MudTabPanel Text="Top">
+                <QuestionList RoomId="@RoomId" Tab="QuestionTab.Top" IsOwner="@m.IsOwner"
+                              IsLive="@(room.Status == RoomStatus.Live)" />
+            </MudTabPanel>
+            <MudTabPanel Text="Recent">
+                <QuestionList RoomId="@RoomId" Tab="QuestionTab.Recent" IsOwner="@m.IsOwner"
+                              IsLive="@(room.Status == RoomStatus.Live)" />
+            </MudTabPanel>
+            <MudTabPanel Text="@($"Resolved ({m.Stats.ResolvedQuestionCount})")">
+                <QuestionList RoomId="@RoomId" Tab="QuestionTab.Resolved" IsOwner="@m.IsOwner"
+                              IsLive="@(room.Status == RoomStatus.Live)" />
+            </MudTabPanel>
+        </MudTabs>
+    </MudItem>
+    <MudItem xs="12" md="4">
+        <MoodPanel RoomId="@RoomId" IsLive="@(room.Status == RoomStatus.Live)" />
+        <TrendingPanel RoomId="@RoomId" />
+    </MudItem>
+</MudGrid>
+
+@code {
+    [Parameter] public string RoomId { get; set; } = "";
+
+    protected override async Task<Model> ComputeState(CancellationToken cancellationToken)
+    {
+        var session = await CircuitHub.SessionResolver.GetSession(cancellationToken);
+        var room = await Rooms.Get(session, RoomId, cancellationToken);
+        if (room == null)
+            return new Model(null, false, new RoomStats(0, 0, 0, 0));
+
+        var isOwner = await Rooms.IsOwner(session, RoomId, cancellationToken);
+        var stats = await RoomStats.GetStats(session, RoomId, cancellationToken);
+        return new Model(room, isOwner, stats);
+    }
+
+    // Nested types
+
+    public sealed record Model(Room? Room, bool IsOwner, RoomStats Stats);
+}

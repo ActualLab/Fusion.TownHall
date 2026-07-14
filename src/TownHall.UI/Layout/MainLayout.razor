@@ -2,6 +2,8 @@
 @implements IDisposable
 @inject UIActionFailureTracker UIActionFailureTracker
 @inject ISnackbar Snackbar
+@inject TownHall.UI.Services.LayoutState LayoutState
+@inject NavigationManager Nav
 
 <MudThemeProvider IsDarkMode="_isDarkMode" />
 <MudPopoverProvider />
@@ -9,14 +11,23 @@
 <MudSnackbarProvider />
 <MudLayout>
     <MudAppBar Elevation="1" Dense="true">
-        <MudLink Href="/" Color="Color.Inherit" Underline="Underline.None">
-            <MudText Typo="Typo.h6">TownHall</MudText>
-        </MudLink>
+        @if (LayoutState.Title is { } title) {
+            <MudText Typo="Typo.h6">@title</MudText>
+        }
+        else {
+            <MudLink Href="/" Color="Color.Inherit" Underline="Underline.None">
+                <MudText Typo="Typo.h6">Town Hall</MudText>
+            </MudLink>
+        }
         <MudSpacer />
         <SessionNameEditor />
+        <RenderModeSwitch />
+        @if (IsHome) {
+            <MudIconButton Icon="@Icons.Custom.Brands.GitHub" Color="Color.Inherit" Size="Size.Small"
+                           Href="https://github.com/ActualLab/Fusion.TownHall" Target="_blank" />
+        }
         <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Rounded.LightMode : Icons.Material.Outlined.DarkMode)"
                        Color="Color.Inherit" OnClick="@(() => _isDarkMode = !_isDarkMode)" />
-        <RenderModeSwitch />
     </MudAppBar>
     <MudMainContent Class="pt-16 pa-4">
         <MudContainer MaxWidth="MaxWidth.Large">
@@ -34,11 +45,32 @@
 @code {
     private bool _isDarkMode = true;
 
+    private bool IsHome => Nav.ToBaseRelativePath(Nav.Uri).TrimEnd('/').Length == 0;
+
     protected override void OnInitialized()
-        => UIActionFailureTracker.Changed += OnFailure;
+    {
+        UIActionFailureTracker.Changed += OnFailure;
+        LayoutState.Changed += OnLayoutStateChanged;
+        // A page (e.g. RoomPage) sets its own app-bar title; reset to the default on navigation
+        Nav.LocationChanged += OnLocationChanged;
+    }
 
     public void Dispose()
-        => UIActionFailureTracker.Changed -= OnFailure;
+    {
+        UIActionFailureTracker.Changed -= OnFailure;
+        LayoutState.Changed -= OnLayoutStateChanged;
+        Nav.LocationChanged -= OnLocationChanged;
+    }
+
+    private void OnLayoutStateChanged()
+        => _ = InvokeAsync(StateHasChanged);
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        // Reset the room title and re-evaluate IsHome (GitHub link) for the new route
+        LayoutState.SetTitle(null);
+        _ = InvokeAsync(StateHasChanged);
+    }
 
     // Failed commands (validation errors, rejected owner actions, etc.) surface as snackbars
     private void OnFailure()

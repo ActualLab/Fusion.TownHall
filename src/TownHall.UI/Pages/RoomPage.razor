@@ -2,34 +2,32 @@
 @inherits ComputedStateComponent<RoomPage.Model>
 @inject IRooms Rooms
 @inject IRoomStats RoomStats
+@inject TownHall.UI.Services.LayoutState LayoutState
 
 @{
     var m = State.ValueOrDefault;
 }
 @if (m == null) {
-    <PageTitle>TownHall</PageTitle>
+    <PageTitle>Town Hall</PageTitle>
     <MudProgressCircular Indeterminate="true" Size="Size.Small" />
     return;
 }
 @if (m.Room is not { } room) {
-    <PageTitle>TownHall</PageTitle>
+    <PageTitle>Town Hall</PageTitle>
     <MudAlert Severity="Severity.Warning" Class="mb-4">This town hall doesn't exist.</MudAlert>
     <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/">Go home</MudButton>
     return;
 }
 
 <PageTitle>@BuildPageTitle(room, m.Stats)</PageTitle>
+@{ LayoutState.SetTitle(room.Title); }
 <PresenceBeacon RoomId="@RoomId" />
 
-<MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap" Class="mb-1">
-    <MudText Typo="Typo.h5">@room.Title</MudText>
+<MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap" Class="mb-3">
     <MudChip T="string" Size="Size.Small"
              Color="@(room.Status switch { RoomStatus.Live => Color.Success, RoomStatus.Ended => Color.Error, _ => Color.Default })">
         @room.Status
     </MudChip>
-</MudStack>
-
-<MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap" Class="mb-3">
     @if (room.Status != RoomStatus.Paused) {
         <CountdownText ClosesAt="@room.ClosesAt" Typo="Typo.body1" />
     }
@@ -118,7 +116,7 @@ else if (room.Status == RoomStatus.Ended) {
         var questions = stats.OpenQuestionCount + stats.ResolvedQuestionCount;
         var questionWord = questions == 1 ? "question" : "questions";
         var participantWord = stats.AudienceCount == 1 ? "participant" : "participants";
-        return $"TownHall: {room.Title}, {stats.OpenQuestionCount} open + {stats.ResolvedQuestionCount} resolved "
+        return $"Town Hall: {room.Title}, {stats.OpenQuestionCount} open + {stats.ResolvedQuestionCount} resolved "
             + $"{questionWord}, {stats.AudienceCount} {participantWord}";
     }
 

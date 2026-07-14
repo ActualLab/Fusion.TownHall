@@ -39,6 +39,7 @@ public static class ClientStartup
         var fusion = services.AddFusion();
         fusion.AddBlazor();
         services.AddScoped<IUpdateDelayer>(c => new UpdateDelayer(c.UIActionTracker(), 0.25)); // 0.25s
+        services.AddScoped<TownHall.UI.Services.LayoutState>();
         services.AddMudServices();
     }
 }

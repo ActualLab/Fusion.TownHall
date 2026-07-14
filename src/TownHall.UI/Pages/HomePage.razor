@@ -3,14 +3,14 @@
 @inject IRooms Rooms
 @inject ISnackbar Snackbar
 
-<PageTitle>TownHall</PageTitle>
+<PageTitle>Town Hall</PageTitle>
 
-<MudText Typo="Typo.h4" GutterBottom="true">TownHall</MudText>
-<MudText Class="mb-6" Typo="Typo.body2">
-    A live audience Q&amp;A app built on
-    <MudLink Href="https://github.com/ActualLab/Fusion" Target="_blank" Typo="Typo.body2">Fusion</MudLink>:
-    create a town hall, share the link, and watch questions, votes, and the room mood
-    update in real time in every window &mdash; no refresh button anywhere.
+<MudText Class="mb-6" Typo="Typo.body1">
+    A live-audience Q&amp;A and mood tracker built with
+    <MudLink Href="https://github.com/ActualLab/Fusion" Target="_blank" Typo="Typo.body1">Fusion</MudLink>.
+    Create a town hall, share its link, and let your audience post and upvote questions while the
+    room's mood updates live. The full source is
+    <MudLink Href="https://github.com/ActualLab/Fusion.TownHall" Target="_blank" Typo="Typo.body1">on GitHub</MudLink>.
 </MudText>
 
 @if (_createdRoom is { } created) {

@@ -52,7 +52,7 @@ public abstract class QuestionsTests(TestAppHost host) : TestBase(host)
     }
 
     [Fact]
-    public async Task ListOpenIdsAndGetTopOpenIdsOrdering()
+    public async Task ListOpenAndListTopOpenOrdering()
     {
         var owner = Session.New();
         var voter = Session.New();
@@ -60,10 +60,10 @@ public abstract class QuestionsTests(TestAppHost host) : TestBase(host)
         var q1 = await Call(new Questions_Post(owner, room.Id, "Older?"));
         var q2 = await Call(new Questions_Post(owner, room.Id, "Newer?"));
         Assert.Equal(q1, await Questions.Get(owner, room.Id, q1.Index));
-        Assert.Equal(new[] { q2.Index, q1.Index }, await Questions.ListOpenIds(owner, room.Id));
+        Assert.Equal(new[] { q2.Index, q1.Index }, await Questions.ListOpen(owner, room.Id));
         await Call(new Questions_Vote(voter, room.Id, q1.Index, true));
-        Assert.Equal(new[] { q1.Index, q2.Index }, await Questions.GetTopOpenIds(owner, room.Id, 10));
-        Assert.Equal(new[] { q1.Index }, await Questions.GetTopOpenIds(owner, room.Id, 1));
+        Assert.Equal(new[] { q1.Index, q2.Index }, await Questions.ListTopOpen(owner, room.Id, 10));
+        Assert.Equal(new[] { q1.Index }, await Questions.ListTopOpen(owner, room.Id, 1));
     }
 
     [Fact]
@@ -108,8 +108,8 @@ public abstract class QuestionsTests(TestAppHost host) : TestBase(host)
         await Assert.ThrowsAsync<UnauthorizedAccessException>(
             () => Call(new Questions_Resolve(other, room.Id, q.Index, "nope")));
         await Call(new Questions_Resolve(owner, room.Id, q.Index, "  Done  "));
-        Assert.Equal(new[] { q.Index }, await Questions.ListResolvedIds(owner, room.Id));
-        Assert.Empty(await Questions.ListOpenIds(owner, room.Id));
+        Assert.Equal(new[] { q.Index }, await Questions.ListResolved(owner, room.Id));
+        Assert.Empty(await Questions.ListOpen(owner, room.Id));
         Assert.Equal("Done", (await Questions.GetResolution(owner, room.Id, q.Index))!.Note);
         Assert.Equal(1, await Questions.GetVoteCount(owner, room.Id, q.Index)); // Votes are frozen
     }
@@ -143,7 +143,7 @@ public abstract class QuestionsTests(TestAppHost host) : TestBase(host)
         await Call(new Questions_Vote(voter, room.Id, q.Index, true));
         await Call(new Questions_Delete(owner, room.Id, q.Index));
         Assert.Null(await Questions.Get(owner, room.Id, q.Index));
-        Assert.Empty(await Questions.ListOpenIds(owner, room.Id));
+        Assert.Empty(await Questions.ListOpen(owner, room.Id));
         Assert.Equal(0, await Questions.GetVoteCount(owner, room.Id, q.Index));
         Assert.False(await Questions.HasOwnVote(voter, room.Id, q.Index));
         await Call(new Questions_Delete(owner, room.Id, q.Index)); // Idempotent

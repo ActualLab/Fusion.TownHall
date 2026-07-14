@@ -26,9 +26,9 @@ else {
     {
         var session = await CircuitHub.SessionResolver.GetSession(cancellationToken);
         return Tab switch {
-            QuestionTab.Top => await Questions.GetTopOpenIds(session, RoomId, 50, cancellationToken),
-            QuestionTab.Recent => await Questions.ListOpenIds(session, RoomId, cancellationToken),
-            _ => await Questions.ListResolvedIds(session, RoomId, cancellationToken),
+            QuestionTab.Top => await Questions.ListTopOpen(session, RoomId, 50, cancellationToken),
+            QuestionTab.Recent => await Questions.ListOpen(session, RoomId, cancellationToken),
+            _ => await Questions.ListResolved(session, RoomId, cancellationToken),
         };
     }
 }

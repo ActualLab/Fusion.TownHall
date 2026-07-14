@@ -9,16 +9,16 @@ public interface IQuestions : IComputeService
     Task<Question?> Get(Session session, string roomId, long index, CancellationToken cancellationToken = default);
 
     // Open questions, newest first ("Recent" tab)
-    [ComputeMethod]
-    Task<ImmutableArray<long>> ListOpenIds(Session session, string roomId, CancellationToken cancellationToken = default);
+    [ComputeMethod(InvalidationDelay = 0.5)]
+    Task<ImmutableArray<long>> ListOpen(Session session, string roomId, CancellationToken cancellationToken = default);
 
     // Open questions sorted by active vote count desc, ties older-first ("Top" tab)
-    [ComputeMethod]
-    Task<ImmutableArray<long>> GetTopOpenIds(Session session, string roomId, int limit, CancellationToken cancellationToken = default);
+    [ComputeMethod(InvalidationDelay = 0.5)]
+    Task<ImmutableArray<long>> ListTopOpen(Session session, string roomId, int limit, CancellationToken cancellationToken = default);
 
     // Resolved questions, most recently resolved first ("Resolved" tab)
     [ComputeMethod]
-    Task<ImmutableArray<long>> ListResolvedIds(Session session, string roomId, CancellationToken cancellationToken = default);
+    Task<ImmutableArray<long>> ListResolved(Session session, string roomId, CancellationToken cancellationToken = default);
 
     // null for Open questions
     [ComputeMethod]

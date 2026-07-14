@@ -9,7 +9,7 @@ public interface IRooms : IComputeService
 
     // Paused + Live rooms (i.e. not Ended), newest first
     [ComputeMethod]
-    Task<ImmutableArray<string>> ListActiveIds(Session session, CancellationToken cancellationToken = default);
+    Task<ImmutableArray<string>> ListActive(Session session, CancellationToken cancellationToken = default);
 
     [ComputeMethod]
     Task<bool> IsOwner(Session session, string roomId, CancellationToken cancellationToken = default);

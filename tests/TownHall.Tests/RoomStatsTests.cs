@@ -18,7 +18,7 @@ public abstract class RoomStatsTests(TestAppHost host) : TestBase(host)
     }
 
     [Fact]
-    public async Task GetTrendingReflectsRecentVotesAndExcludesResolved()
+    public async Task ListTrendingReflectsRecentVotesAndExcludesResolved()
     {
         var owner = Session.New();
         var voter = Session.New();
@@ -30,7 +30,7 @@ public abstract class RoomStatsTests(TestAppHost host) : TestBase(host)
         await Call(new Questions_Resolve(owner, room.Id, q2.Index, ""));
         Assert.Equal(
             new[] { new TrendingQuestion(room.Id, q1.Index, 1) },
-            await RoomStats.GetTrending(owner, room.Id, 10));
+            await RoomStats.ListTrending(owner, room.Id, 10));
     }
 }
 

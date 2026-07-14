@@ -12,6 +12,26 @@ read it now.
 first reading [CODING_STYLE.md → "Regular comments, docstrings, XML
 documentation comments"](CODING_STYLE.md#regular-comments-docstrings-xml-documentation-comments).
 
+# Version branches
+
+This app is implemented several times over — once per real-time stack — to
+compare the code each framework produces. **Each version lives on its own
+branch, named after the framework:**
+
+- **`main`** — the .NET + [Fusion](https://github.com/ActualLab/Fusion)
+  version. Implemented first; every other version is derived from it.
+- **`signalr`** — the .NET + SignalR version, using **no Fusion at all**.
+  The next one to build.
+
+Branches for other stacks (plain .NET, and possibly TypeScript and Elixir
+stacks) will be added to this list as they're built.
+
+**Feature-parity tags.** A name like `<branch>-v1` (e.g. `main-v1`,
+`signalr-v1`) marks the point where a branch reaches a given feature set. The
+same `-v1` across all framework branches matches feature-wise, so those points
+are directly comparable. These are **tags, not branches** — fixed pointers we
+never move.
+
 # Database & migrations
 
 The app is PostgreSQL-only. The EF Core model (entities + `AppDbContext`)
@@ -35,6 +55,11 @@ Every conversation with an AI agent in this repo must be logged to the
 current session file in [docs/ai-sessions/](docs/ai-sessions/). Session files are named
 `NN-description.md` (e.g. `01-init.md`); the current one is the file
 with the highest `NN`.
+
+**On a non-`main` branch, log into `docs/ai-sessions/<branch>/` instead**
+(e.g. `docs/ai-sessions/signalr/01-init.md`). Each framework branch keeps its
+session logs in its own subfolder, with `NN` numbering restarting there, so
+merges from `main` never conflict over session files.
 
 **One session file per commit.** A session file accumulates exchanges
 until they are committed:

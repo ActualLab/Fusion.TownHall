@@ -12,10 +12,10 @@ public class QuestionsService(IServiceProvider services) : DbServiceBase<AppDbCo
     public virtual async Task<Question?> Get(Session session, string roomId, long index, CancellationToken cancellationToken = default)
         => await GetQuestion(roomId, index, cancellationToken).ConfigureAwait(false);
 
-    public virtual async Task<ImmutableArray<long>> ListOpenIds(Session session, string roomId, CancellationToken cancellationToken = default)
+    public virtual async Task<ImmutableArray<long>> ListOpen(Session session, string roomId, CancellationToken cancellationToken = default)
         => await ListOpenQuestionIds(roomId, cancellationToken).ConfigureAwait(false);
 
-    public virtual async Task<ImmutableArray<long>> GetTopOpenIds(Session session, string roomId, int limit, CancellationToken cancellationToken = default)
+    public virtual async Task<ImmutableArray<long>> ListTopOpen(Session session, string roomId, int limit, CancellationToken cancellationToken = default)
     {
         var openIds = await ListOpenQuestionIds(roomId, cancellationToken).ConfigureAwait(false);
         var counted = new List<(long Index, int Count)>(openIds.Length);
@@ -30,7 +30,7 @@ public class QuestionsService(IServiceProvider services) : DbServiceBase<AppDbCo
         ];
     }
 
-    public virtual async Task<ImmutableArray<long>> ListResolvedIds(Session session, string roomId, CancellationToken cancellationToken = default)
+    public virtual async Task<ImmutableArray<long>> ListResolved(Session session, string roomId, CancellationToken cancellationToken = default)
         => await ListResolvedQuestionIds(roomId, cancellationToken).ConfigureAwait(false);
 
     public virtual async Task<Resolution?> GetResolution(Session session, string roomId, long index, CancellationToken cancellationToken = default)

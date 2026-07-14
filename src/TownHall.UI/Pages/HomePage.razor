@@ -93,7 +93,7 @@ else {
     protected override async Task<ImmutableArray<string>> ComputeState(CancellationToken cancellationToken)
     {
         var session = await CircuitHub.SessionResolver.GetSession(cancellationToken);
-        return await Rooms.ListActiveIds(session, cancellationToken);
+        return await Rooms.ListActive(session, cancellationToken);
     }
 
     private async Task Create()

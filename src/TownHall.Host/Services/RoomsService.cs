@@ -17,7 +17,7 @@ public class RoomsService(IServiceProvider services) : DbServiceBase<AppDbContex
     public virtual async Task<Room?> Get(Session session, string roomId, CancellationToken cancellationToken = default)
         => await GetRoom(roomId, cancellationToken).ConfigureAwait(false);
 
-    public virtual async Task<ImmutableArray<string>> ListActiveIds(Session session, CancellationToken cancellationToken = default)
+    public virtual async Task<ImmutableArray<string>> ListActive(Session session, CancellationToken cancellationToken = default)
         => await ListActiveRoomIds(cancellationToken).ConfigureAwait(false);
 
     public virtual async Task<bool> IsOwner(Session session, string roomId, CancellationToken cancellationToken = default)

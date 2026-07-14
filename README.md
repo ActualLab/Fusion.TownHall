@@ -20,6 +20,21 @@ See [docs/TownHall-Phase1.md](docs/TownHall-Phase1.md) for the Phase 1 spec —
 the Fusion-based implementation, where every view updates in real time via
 Fusion's compute services and invalidation.
 
+## Framework versions
+
+Each framework implementation lives on its own branch, named after the stack:
+
+- **`main`** — .NET + [Fusion](https://github.com/ActualLab/Fusion).
+  Implemented first; the other versions are derived from it.
+- **`signalr`** — .NET + SignalR, with **no Fusion at all**. Next up.
+
+More branches (plain .NET, and possibly TypeScript and Elixir stacks) will be
+added to this list as they're built.
+
+Version tags like `<branch>-v1` (e.g. `main-v1`, `signalr-v1`) mark
+feature-equivalent snapshots across the branches, so the same `-v1` on any
+branch is directly comparable. They're fixed tags — never moved.
+
 The app is generated and kept updated with
 [Claude Code](https://claude.com/claude-code). The full interaction log —
 every user prompt, with Claude's responses summarized to a bare minimum —

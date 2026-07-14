@@ -11,7 +11,7 @@ public class RoomStatsService(IServiceProvider services) : DbServiceBase<AppDbCo
     private QuestionsService Questions => field ??= (QuestionsService)Services.GetRequiredService<IQuestions>();
     private PresenceService Presence => field ??= (PresenceService)Services.GetRequiredService<IPresence>();
 
-    public virtual async Task<ImmutableArray<TrendingQuestion>> GetTrending(Session session, string roomId, int limit, CancellationToken cancellationToken = default)
+    public virtual async Task<ImmutableArray<TrendingQuestion>> ListTrending(Session session, string roomId, int limit, CancellationToken cancellationToken = default)
         => await GetRoomTrending(roomId, limit, cancellationToken).ConfigureAwait(false);
 
     public virtual async Task<RoomStats> GetStats(Session session, string roomId, CancellationToken cancellationToken = default)

@@ -3,9 +3,9 @@
   <!-- Constants -->
   <PropertyGroup>
     <ActualLabFusionVersion>13.0.28</ActualLabFusionVersion>
-    <AspNetCoreVersion>[10.0.1,)</AspNetCoreVersion>
+    <AspNetCoreVersion>[10.0.9,)</AspNetCoreVersion>
     <BlazorVersion>$(AspNetCoreVersion)</BlazorVersion>
-    <EntityFrameworkCoreVersion>[10.0.1,)</EntityFrameworkCoreVersion>
+    <EntityFrameworkCoreVersion>[10.0.9,)</EntityFrameworkCoreVersion>
     <MudBlazorVersion>9.7.0</MudBlazorVersion>
   </PropertyGroup>
   <!-- Fusion packages -->
@@ -26,11 +26,12 @@
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="$(EntityFrameworkCoreVersion)" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="$(EntityFrameworkCoreVersion)" />
     <PackageVersion Include="MudBlazor" Version="$(MudBlazorVersion)" />
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="[10.0.3,)" />
   </ItemGroup>
   <!-- Test time only -->
   <ItemGroup>
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.13.0" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.8.0" />
     <PackageVersion Include="xunit" Version="2.9.3" />
-    <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
   </ItemGroup>
 </Project>

@@ -28,10 +28,10 @@ public class DbRoomOwner // PK: (RoomId, SessionId)
     public string SessionId { get; set; } = "";
 }
 
-public class DbParticipant
+public class DbParticipant // Key = public participant id (never the secret session id)
 {
     [Key]
-    public string SessionId { get; set; } = "";
+    public string Id { get; set; } = "";
     public string Name { get; set; } = "";
 }
 
@@ -42,7 +42,7 @@ public class DbQuestion // Key = "{RoomId}/{Index}"; ResolvedAt != null means Re
     public string Key { get; set; } = "";
     public string RoomId { get; set; } = "";
     public long Index { get; set; }
-    public string AuthorName { get; set; } = "";
+    public string AuthorId { get; set; } = "";
     public string Text { get; set; } = "";
     public DateTime PostedAt { get; set; }
     public DateTime? ResolvedAt { get; set; }

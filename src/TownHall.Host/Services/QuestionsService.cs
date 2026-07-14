@@ -74,23 +74,20 @@ public class QuestionsService(IServiceProvider services) : DbServiceBase<AppDbCo
         if (dbRoom.GetStatus(now) != RoomStatus.Live)
             throw new InvalidOperationException("This town hall is not live.");
 
-        string sessionId = session.Id;
-        var dbParticipant = await dbContext.Participants
-            .FirstOrDefaultAsync(p => p.SessionId == sessionId, cancellationToken)
-            .ConfigureAwait(false);
+        var authorId = ParticipantId.Of(session);
         var questionIndex = dbRoom.NextQuestionIndex++;
         var dbQuestion = new DbQuestion {
             Key = DbQuestion.ComposeKey(roomId, questionIndex),
             RoomId = roomId,
             Index = questionIndex,
-            AuthorName = dbParticipant?.Name ?? NameGenerator.New(sessionId),
+            AuthorId = authorId,
             Text = text,
             PostedAt = now,
         };
         dbContext.Add(dbQuestion);
         await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         context.Operation.Items.Set("Index", dbQuestion.Index);
-        return new Question(roomId, dbQuestion.Index, dbQuestion.AuthorName, text, now);
+        return new Question(roomId, dbQuestion.Index, authorId, text, now);
     }
 
     public virtual async Task OnVote(Questions_Vote command, CancellationToken cancellationToken = default)
@@ -222,7 +219,7 @@ public class QuestionsService(IServiceProvider services) : DbServiceBase<AppDbCo
         var dbQuestion = await QuestionResolver.Get(DbQuestion.ComposeKey(roomId, index), cancellationToken).ConfigureAwait(false);
         return dbQuestion == null
             ? null
-            : new Question(roomId, dbQuestion.Index, dbQuestion.AuthorName, dbQuestion.Text,
+            : new Question(roomId, dbQuestion.Index, dbQuestion.AuthorId, dbQuestion.Text,
                 dbQuestion.PostedAt.DefaultKind(DateTimeKind.Utc));
     }
 

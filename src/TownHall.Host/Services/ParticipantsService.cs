@@ -10,16 +10,21 @@ public class ParticipantsService(IServiceProvider services) : DbServiceBase<AppD
         = services.DbEntityResolver<string, DbParticipant>();
 
     public virtual async Task<ParticipantInfo> GetOwn(Session session, CancellationToken cancellationToken = default)
+        => new(await GetName(ParticipantId.Of(session), cancellationToken).ConfigureAwait(false));
+
+    public virtual async Task<string> GetName(string participantId, CancellationToken cancellationToken = default)
     {
-        var dbParticipant = await ParticipantResolver.Get(session.Id, cancellationToken).ConfigureAwait(false);
-        return new ParticipantInfo(dbParticipant?.Name ?? NameGenerator.New(session.Id));
+        var dbParticipant = await ParticipantResolver.Get(participantId, cancellationToken).ConfigureAwait(false);
+        return dbParticipant?.Name ?? NameGenerator.New(participantId);
     }
 
     public virtual async Task OnSetName(Participants_SetName command, CancellationToken cancellationToken = default)
     {
         var (session, name) = command;
+        var participantId = ParticipantId.Of(session);
         if (Invalidation.IsActive) {
             _ = GetOwn(session, default);
+            _ = GetName(participantId, default);
             return;
         }
 
@@ -30,12 +35,11 @@ public class ParticipantsService(IServiceProvider services) : DbServiceBase<AppD
         var dbContext = await DbHub.CreateOperationDbContext(cancellationToken).ConfigureAwait(false);
         await using var _1 = dbContext.ConfigureAwait(false);
 
-        string sessionId = session.Id;
         var dbParticipant = await dbContext.Participants
-            .FirstOrDefaultAsync(p => p.SessionId == sessionId, cancellationToken)
+            .FirstOrDefaultAsync(p => p.Id == participantId, cancellationToken)
             .ConfigureAwait(false);
         if (dbParticipant == null)
-            dbContext.Add(new DbParticipant { SessionId = sessionId, Name = name });
+            dbContext.Add(new DbParticipant { Id = participantId, Name = name });
         else
             dbParticipant.Name = name;
         await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);

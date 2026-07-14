@@ -24,14 +24,15 @@ public sealed record Room(
 public enum QuestionStatus { Open = 0, Resolved = 1 }
 
 // Immutable after creation. Mutable facets live behind their own reads:
-// vote count -> IQuestions.GetVoteCount, resolution -> IQuestions.GetResolution.
+// vote count -> IQuestions.GetVoteCount, resolution -> IQuestions.GetResolution,
+// author name -> IParticipants.GetName(AuthorId), so renames are reflected live.
 [MessagePackObject(true)]
 public sealed record Question(
     string RoomId,
     // Per-room, unique, monotonic; gaps possible after deletions
     long Index,
-    // Snapshot of the poster's name at post time
-    string AuthorName,
+    // Public, stable id of the poster; resolve to a name via IParticipants.GetName
+    string AuthorId,
     string Text,
     Moment PostedAt
 );

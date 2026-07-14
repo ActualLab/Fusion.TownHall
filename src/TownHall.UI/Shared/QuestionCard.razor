@@ -19,7 +19,7 @@
     }
     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
         <MudText Typo="Typo.caption" Class="mud-text-secondary">
-            — by @question.AuthorName · @TimeText.Ago(question.PostedAt)
+            — by <ParticipantName ParticipantId="@question.AuthorId" /> · @TimeText.Ago(question.PostedAt)
         </MudText>
         <MudSpacer />
         @if (IsOwner) {

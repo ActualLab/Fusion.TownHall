@@ -12,19 +12,34 @@ public abstract class QuestionsTests(TestAppHost host) : TestBase(host)
     }
 
     [Fact]
-    public async Task OnPostAssignsIndexesAndAuthorNameSnapshot()
+    public async Task OnPostAssignsIndexesAndReferencesAuthorById()
     {
         var owner = Session.New();
+        var other = Session.New();
         var room = await CreateRoom(owner);
         await Call(new Participants_SetName(owner, "Poster"));
         var q1 = await Call(new Questions_Post(owner, room.Id, "First?"));
         var q2 = await Call(new Questions_Post(owner, room.Id, "  Second?  "));
         Assert.Equal(1, q1.Index);
         Assert.Equal(2, q2.Index);
-        Assert.Equal("Poster", q1.AuthorName);
         Assert.Equal("Second?", q2.Text);
+        // Questions reference the author by a stable id (not a name snapshot); same author -> same id
+        Assert.Equal(q1.AuthorId, q2.AuthorId);
+        Assert.Equal("Poster", await Participants.GetName(q1.AuthorId));
+        var q3 = await Call(new Questions_Post(other, room.Id, "Third?"));
+        Assert.NotEqual(q1.AuthorId, q3.AuthorId);
+    }
+
+    [Fact]
+    public async Task RenamePropagatesToAlreadyPostedQuestions()
+    {
+        var owner = Session.New();
+        var room = await CreateRoom(owner);
+        await Call(new Participants_SetName(owner, "Poster"));
+        var q = await Call(new Questions_Post(owner, room.Id, "Mine?"));
+        Assert.Equal("Poster", await Participants.GetName(q.AuthorId));
         await Call(new Participants_SetName(owner, "Renamed"));
-        Assert.Equal("Poster", (await Questions.Get(owner, room.Id, q1.Index))!.AuthorName);
+        Assert.Equal("Renamed", await ReadWhen(() => Participants.GetName(q.AuthorId), n => n == "Renamed"));
     }
 
     [Fact]

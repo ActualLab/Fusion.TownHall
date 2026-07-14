@@ -95,7 +95,9 @@ void ConfigureServices()
         // ReSharper disable once VariableHidesOuterVariable
         db.Services.AddTransientDbContextFactory<AppDbContext>((c, db) => {
             var appTempDir = FilePath.GetApplicationTempDirectory("", true);
-            var dbPath = appTempDir & "TownHall_v1.db";
+            // Bump the version suffix on incompatible schema changes: EnsureCreated doesn't migrate,
+            // and a fresh file avoids stale columns from a previous schema.
+            var dbPath = appTempDir & "TownHall_v2.db";
             db.UseSqlite($"Data Source={dbPath}");
             if (env.IsDevelopment())
                 db.EnableSensitiveDataLogging();

@@ -19,7 +19,7 @@ public class DbRoom
 
     public RoomStatus GetStatus(Moment now)
         => now >= ClosesAt.DefaultKind(DateTimeKind.Utc).ToMoment() ? RoomStatus.Ended
-            : IsLive ? RoomStatus.Live : RoomStatus.Stopped;
+            : IsLive ? RoomStatus.Live : RoomStatus.Paused;
 }
 
 public class DbRoomOwner // PK: (RoomId, SessionId)

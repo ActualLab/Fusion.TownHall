@@ -3,11 +3,11 @@ namespace TownHall.Tests;
 public abstract class RoomsTests(TestAppHost host) : TestBase(host)
 {
     [Fact]
-    public async Task OnCreateReturnsStoppedRoomWithClampedDuration()
+    public async Task OnCreateReturnsPausedRoomWithClampedDuration()
     {
         var session = Session.New();
         var room = await Call(new Rooms_Create(session, "  Board Q&A  ", TimeSpan.FromSeconds(1)));
-        Assert.Equal(RoomStatus.Stopped, room.Status);
+        Assert.Equal(RoomStatus.Paused, room.Status);
         Assert.Equal("Board Q&A", room.Title);
         Assert.Equal(TimeSpan.FromMinutes(5), room.ClosesAt - room.CreatedAt);
         Assert.Equal(room, await Rooms.Get(session, room.Id));

@@ -80,7 +80,7 @@ public class RoomsService(IServiceProvider services) : DbServiceBase<AppDbContex
         dbContext.Add(new DbRoomOwner { RoomId = id, SessionId = session.Id });
         await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         context.Operation.Items.Set("RoomId", id);
-        return new Room(id, title, now, closesAt, RoomStatus.Stopped, isPrivate);
+        return new Room(id, title, now, closesAt, RoomStatus.Paused, isPrivate);
     }
 
     public virtual async Task OnClaimOwnership(Rooms_ClaimOwnership command, CancellationToken cancellationToken = default)

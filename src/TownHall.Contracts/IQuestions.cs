@@ -40,7 +40,7 @@ public interface IQuestions : IComputeService
     [CommandHandler]
     Task OnVote(Questions_Vote command, CancellationToken cancellationToken = default);
 
-    // Owner-only, allowed while Stopped or Live, rejected once Ended. Marks Open -> Resolved with
+    // Owner-only, allowed while Paused or Live, rejected once Ended. Marks Open -> Resolved with
     // an optional note (trimmed 0..500 chars); resolving a Resolved question overwrites the note.
     [CommandHandler]
     Task OnResolve(Questions_Resolve command, CancellationToken cancellationToken = default);

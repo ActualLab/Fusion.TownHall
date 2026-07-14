@@ -4,7 +4,7 @@ namespace TownHall;
 
 public enum RoomStatus
 {
-    Stopped = 0,  // Default at creation; also the paused state
+    Paused = 0,   // Default at creation; not yet started or temporarily halted
     Live = 1,
     Ended = 2,    // now >= ClosesAt; terminal
 }

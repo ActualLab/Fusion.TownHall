@@ -7,7 +7,7 @@ public interface IRooms : IComputeService
     [ComputeMethod]
     Task<Room?> Get(Session session, string roomId, CancellationToken cancellationToken = default);
 
-    // Stopped + Live rooms (i.e. not Ended), newest first
+    // Paused + Live rooms (i.e. not Ended), newest first
     [ComputeMethod]
     Task<ImmutableArray<string>> ListActiveIds(Session session, CancellationToken cancellationToken = default);
 
@@ -19,7 +19,7 @@ public interface IRooms : IComputeService
     Task<string?> GetOwnerToken(Session session, string roomId, CancellationToken cancellationToken = default);
 
     // Title: trimmed 1..80 chars. Duration is clamped to [5 min, 24 h]; ClosesAt = server now + Duration.
-    // Marks the creating session as an owner. The room starts Stopped.
+    // Marks the creating session as an owner. The room starts Paused.
     [CommandHandler]
     Task<Room> OnCreate(Rooms_Create command, CancellationToken cancellationToken = default);
 

@@ -30,7 +30,7 @@
 </MudStack>
 
 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap" Class="mb-3">
-    @if (room.Status != RoomStatus.Stopped) {
+    @if (room.Status != RoomStatus.Paused) {
         <CountdownText ClosesAt="@room.ClosesAt" Typo="Typo.body1" />
     }
     @if (m.IsOwner) {
@@ -55,7 +55,7 @@
     </MudText>
 </MudStack>
 
-@if (room.Status == RoomStatus.Stopped) {
+@if (room.Status == RoomStatus.Paused) {
     <MudAlert Severity="Severity.Info" Class="mb-4">This town hall is paused — hold tight!</MudAlert>
 }
 else if (room.Status == RoomStatus.Ended) {
@@ -69,20 +69,28 @@ else if (room.Status == RoomStatus.Ended) {
 <MudGrid>
     <MudItem xs="12" md="8">
         <QuestionComposer RoomId="@RoomId" IsLive="@(room.Status == RoomStatus.Live)" />
-        <MudTabs Elevation="1" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-3">
-            <MudTabPanel Text="@($"Top ({m.Stats.OpenQuestionCount})")">
-                <QuestionList RoomId="@RoomId" Tab="QuestionTab.Top" IsOwner="@m.IsOwner"
-                              IsLive="@(room.Status == RoomStatus.Live)" />
-            </MudTabPanel>
-            <MudTabPanel Text="@($"Recent ({m.Stats.OpenQuestionCount})")">
-                <QuestionList RoomId="@RoomId" Tab="QuestionTab.Recent" IsOwner="@m.IsOwner"
-                              IsLive="@(room.Status == RoomStatus.Live)" />
-            </MudTabPanel>
-            <MudTabPanel Text="@($"Resolved ({m.Stats.ResolvedQuestionCount})")">
-                <QuestionList RoomId="@RoomId" Tab="QuestionTab.Resolved" IsOwner="@m.IsOwner"
-                              IsLive="@(room.Status == RoomStatus.Live)" />
-            </MudTabPanel>
-        </MudTabs>
+        @if (m.Stats.OpenQuestionCount + m.Stats.ResolvedQuestionCount > 0) {
+            <MudTabs Elevation="1" Rounded="true" ApplyEffectsToContainer="true">
+                <MudTabPanel Text="@($"Top ({m.Stats.OpenQuestionCount})")">
+                    <div class="pt-3 px-3 pb-1">
+                        <QuestionList RoomId="@RoomId" Tab="QuestionTab.Top" IsOwner="@m.IsOwner"
+                                      IsLive="@(room.Status == RoomStatus.Live)" />
+                    </div>
+                </MudTabPanel>
+                <MudTabPanel Text="@($"Recent ({m.Stats.OpenQuestionCount})")">
+                    <div class="pt-3 px-3 pb-1">
+                        <QuestionList RoomId="@RoomId" Tab="QuestionTab.Recent" IsOwner="@m.IsOwner"
+                                      IsLive="@(room.Status == RoomStatus.Live)" />
+                    </div>
+                </MudTabPanel>
+                <MudTabPanel Text="@($"Resolved ({m.Stats.ResolvedQuestionCount})")">
+                    <div class="pt-3 px-3 pb-1">
+                        <QuestionList RoomId="@RoomId" Tab="QuestionTab.Resolved" IsOwner="@m.IsOwner"
+                                      IsLive="@(room.Status == RoomStatus.Live)" />
+                    </div>
+                </MudTabPanel>
+            </MudTabs>
+        }
     </MudItem>
     <MudItem xs="12" md="4">
         <MoodPanel RoomId="@RoomId" IsLive="@(room.Status == RoomStatus.Live)" />

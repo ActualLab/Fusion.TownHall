@@ -10,16 +10,20 @@ public class DbRoom
     [Key]
     public string Id { get; set; } = "";
     public string Title { get; set; } = "";
+    public string Link { get; set; } = "";
+    public string Description { get; set; } = "";
     public string OwnerToken { get; set; } = "";
-    public bool IsLive { get; set; }
     public bool IsPrivate { get; set; }
     public long NextQuestionIndex { get; set; } = 1;
     public DateTime CreatedAt { get; set; }
-    public DateTime ClosesAt { get; set; }
+    public DateTime EndsAt { get; set; }
+    // Non-null while paused (the timer is frozen); null while running
+    public DateTime? PausedAt { get; set; }
 
     public RoomStatus GetStatus(Moment now)
-        => now >= ClosesAt.DefaultKind(DateTimeKind.Utc).ToMoment() ? RoomStatus.Ended
-            : IsLive ? RoomStatus.Live : RoomStatus.Paused;
+        => PausedAt != null ? RoomStatus.Paused
+            : now >= EndsAt.DefaultKind(DateTimeKind.Utc).ToMoment() ? RoomStatus.Ended
+            : RoomStatus.Live;
 }
 
 public class DbRoomOwner // PK: (RoomId, SessionId)

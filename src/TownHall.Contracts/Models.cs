@@ -4,18 +4,25 @@ namespace TownHall;
 
 public enum RoomStatus
 {
-    Paused = 0,   // Default at creation; not yet started or temporarily halted
+    Paused = 0,   // Default at creation; not yet started or temporarily halted (timer frozen)
     Live = 1,
-    Ended = 2,    // now >= ClosesAt; terminal
+    Ended = 2,    // Running and now >= EndsAt; terminal
 }
 
 [MessagePackObject(true)]
 public sealed record Room(
     string Id,
     string Title,
+    // Live-event URL (Zoom/Meet/…), "" if none
+    string Link,
+    // Single-paragraph blurb, "" if none
+    string Description,
     Moment CreatedAt,
-    Moment ClosesAt,
-    // Derived at read time from the stored toggle + ClosesAt, auto-invalidated at ClosesAt
+    // When the hall ends while running; while paused the remaining time is frozen at EndsAt - PausedAt
+    Moment EndsAt,
+    // Non-null while Paused (the moment it was paused / created); null while Live
+    Moment? PausedAt,
+    // Derived at read time; auto-invalidated at EndsAt while running
     RoomStatus Status,
     // Private rooms are reachable by link, but hidden from IRooms.ListActiveIds
     bool IsPrivate

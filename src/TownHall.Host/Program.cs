@@ -97,7 +97,7 @@ void ConfigureServices()
             var appTempDir = FilePath.GetApplicationTempDirectory("", true);
             // Bump the version suffix on incompatible schema changes: EnsureCreated doesn't migrate,
             // and a fresh file avoids stale columns from a previous schema.
-            var dbPath = appTempDir & "TownHall_v2.db";
+            var dbPath = appTempDir & "TownHall_v4.db";
             db.UseSqlite($"Data Source={dbPath}");
             if (env.IsDevelopment())
                 db.EnableSensitiveDataLogging();

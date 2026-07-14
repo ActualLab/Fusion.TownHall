@@ -17,7 +17,7 @@
             @room.Status
         </MudChip>
         <MudSpacer />
-        <MudText Typo="Typo.body2" Class="mud-text-secondary">@TimeText.Left(room.ClosesAt)</MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">@TimeText.Left(room.EndsAt - (room.PausedAt ?? Moment.Now))</MudText>
         <MudText Typo="Typo.body2" Class="mud-text-secondary">
             @m.Stats.OpenQuestionCount open · @m.Stats.AudienceCount here
         </MudText>

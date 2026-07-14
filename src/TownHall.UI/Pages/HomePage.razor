@@ -51,6 +51,10 @@ else {
                 Create
             </MudButton>
         </MudStack>
+        <MudTextField @bind-Value="_link" Label="Live-event link (optional)" Immediate="true" MaxLength="500"
+                      Placeholder="https://zoom.us/j/…" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-2" />
+        <MudTextField @bind-Value="_description" Label="Description (optional)" Immediate="true" Lines="2" MaxLength="1000"
+                      Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-2" />
         <MudCheckBox @bind-Value="_isPrivate" Label="Private — hidden from the town hall list below" Dense="true" />
     </MudPaper>
 }
@@ -72,6 +76,8 @@ else {
 
 @code {
     private string _title = "";
+    private string _link = "";
+    private string _description = "";
     private int _durationMinutes = 60;
     private bool _isPrivate;
     private Room? _createdRoom;
@@ -92,7 +98,8 @@ else {
 
     private async Task Create()
     {
-        var command = new Rooms_Create(Session, _title, TimeSpan.FromMinutes(_durationMinutes), _isPrivate);
+        var command = new Rooms_Create(
+            Session, _title, TimeSpan.FromMinutes(_durationMinutes), _isPrivate, _link, _description);
         var result = await UICommander.Run(command);
         if (result.HasError)
             return;
@@ -100,6 +107,8 @@ else {
         _createdRoom = result.Value;
         _createdOwnerToken = await Rooms.GetOwnerToken(Session, result.Value.Id);
         _title = "";
+        _link = "";
+        _description = "";
     }
 
     private string RoomUrl(string roomId)

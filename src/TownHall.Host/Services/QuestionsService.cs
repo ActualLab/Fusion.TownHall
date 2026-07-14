@@ -144,24 +144,25 @@ public class QuestionsService(IServiceProvider services) : DbServiceBase<AppDbCo
             return;
         }
 
-        note = note.Trim();
+        // Single paragraph, like a question
+        note = string.Join(" ", note.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
         if (note.Length > 500)
             throw new ArgumentException("Resolution note must be at most 500 characters long.");
 
         var dbContext = await DbHub.CreateOperationDbContext(cancellationToken).ConfigureAwait(false);
         await using var _1 = dbContext.ConfigureAwait(false);
 
-        var dbRoom = await dbContext.GetRoom(roomId, cancellationToken).ConfigureAwait(false);
+        // Resolution (and its note) is question metadata, so it stays editable even after Ended —
+        // one owner can mark a question resolved and another can add or edit the note later
         await dbContext.RequireRoomOwner(roomId, session.Id, cancellationToken).ConfigureAwait(false);
         var now = Clocks.SystemClock.Now;
-        if (dbRoom.GetStatus(now) == RoomStatus.Ended)
-            throw new InvalidOperationException("This town hall has ended.");
 
         var dbQuestion = await dbContext.Questions
             .FirstOrDefaultAsync(q => q.Key == DbQuestion.ComposeKey(roomId, index), cancellationToken)
             .ConfigureAwait(false)
             ?? throw new KeyNotFoundException("Question not found.");
-        dbQuestion.ResolvedAt = now;
+        // Preserve the original resolution time when only the note is being edited
+        dbQuestion.ResolvedAt ??= now;
         dbQuestion.ResolutionNote = note;
         await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }

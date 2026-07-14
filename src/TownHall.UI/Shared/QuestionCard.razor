@@ -33,10 +33,12 @@
                     <MudIconButton Icon="@Icons.Material.Filled.Check" Size="Size.Small"
                                    OnClick="@(() => { _note = m.Resolution?.Note ?? ""; _isResolving = true; })" />
                 </MudTooltip>
-                <MudTooltip Text="Delete">
-                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
-                                   OnClick="@(() => _isConfirmingDelete = true)" />
-                </MudTooltip>
+                @if (!IsEnded) {
+                    <MudTooltip Text="Delete">
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                       OnClick="@(() => _isConfirmingDelete = true)" />
+                    </MudTooltip>
+                }
             }
         }
         <MudButton StartIcon="@Icons.Material.Filled.ThumbUp" Size="Size.Small"
@@ -52,7 +54,7 @@
             <MudTextField @bind-Value="_note" Immediate="true" MaxLength="500" Margin="Margin.Dense"
                           Label="Resolution note (optional)" Variant="Variant.Outlined" />
             <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary" OnClick="Resolve">
-                Resolve
+                @(isResolved ? "Save" : "Resolve")
             </MudButton>
             <MudButton Size="Size.Small" OnClick="@(() => _isResolving = false)">Cancel</MudButton>
         </MudStack>
@@ -67,6 +69,7 @@
     [Parameter, EditorRequired] public string RoomId { get; set; } = "";
     [Parameter, EditorRequired] public long Index { get; set; }
     [Parameter] public bool IsOwner { get; set; }
+    [Parameter] public bool IsEnded { get; set; }
     [Parameter] public bool IsLive { get; set; }
 
     protected override void OnInitialized()

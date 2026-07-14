@@ -16,9 +16,11 @@ public static class TimeText
         };
     }
 
-    public static string Left(Moment closesAt)
+    public static string Left(Moment endsAt)
+        => Left(endsAt - Moment.Now);
+
+    public static string Left(TimeSpan delta)
     {
-        var delta = closesAt - Moment.Now;
         return delta switch {
             { Ticks: <= 0 } => "ended",
             { TotalMinutes: < 1 } => "less than a minute left",

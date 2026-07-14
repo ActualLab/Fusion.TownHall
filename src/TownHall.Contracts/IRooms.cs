@@ -18,8 +18,10 @@ public interface IRooms : IComputeService
     [ComputeMethod]
     Task<string?> GetOwnerToken(Session session, string roomId, CancellationToken cancellationToken = default);
 
-    // Title: trimmed 1..80 chars. Duration is clamped to [5 min, 24 h]; ClosesAt = server now + Duration.
-    // Marks the creating session as an owner. The room starts Paused.
+    // Title: trimmed 1..80 chars. Link: optional http(s) URL (<=500). Description: optional
+    // single paragraph (<=1000). Duration is clamped to [5 min, 24 h]. Marks the creating session
+    // as an owner. The room starts Paused with the timer frozen at the full duration (it begins
+    // counting down only when first resumed).
     [CommandHandler]
     Task<Room> OnCreate(Rooms_Create command, CancellationToken cancellationToken = default);
 
@@ -27,7 +29,8 @@ public interface IRooms : IComputeService
     [CommandHandler]
     Task OnClaimOwnership(Rooms_ClaimOwnership command, CancellationToken cancellationToken = default);
 
-    // Owner-only. Live=true => start, Live=false => stop. Idempotent. Rejected once Ended.
+    // Owner-only. Live=true resumes (shifting EndsAt forward by the paused duration), Live=false
+    // pauses (freezing the remaining time). Idempotent. Rejected once Ended.
     [CommandHandler]
     Task OnSetLive(Rooms_SetLive command, CancellationToken cancellationToken = default);
 
@@ -35,13 +38,22 @@ public interface IRooms : IComputeService
     [CommandHandler]
     Task OnSetIsPrivate(Rooms_SetIsPrivate command, CancellationToken cancellationToken = default);
 
-    // Owner-only. Title: trimmed 1..80 chars. Rejected once Ended.
+    // Owner-only. Title: trimmed 1..80 chars. Allowed even after Ended (metadata, not votes/questions).
     [CommandHandler]
     Task OnSetTitle(Rooms_SetTitle command, CancellationToken cancellationToken = default);
 
-    // Owner-only. Shifts ClosesAt by Delta; the result is clamped to [now, CreatedAt + 24 h],
-    // so shrinking down to "now" ends the room. An Ended room can be resurrected by a positive
-    // Delta within a 10-minute grace period: ClosesAt then becomes now + Delta. Rejected otherwise.
+    // Owner-only. Link: "" or an http(s) URL (<=500). Allowed even after Ended.
+    [CommandHandler]
+    Task OnSetLink(Rooms_SetLink command, CancellationToken cancellationToken = default);
+
+    // Owner-only. Description: "" or a single paragraph (<=1000). Allowed even after Ended.
+    [CommandHandler]
+    Task OnSetDescription(Rooms_SetDescription command, CancellationToken cancellationToken = default);
+
+    // Owner-only. Shifts the remaining time by Delta (relative to the room's own clock, frozen while
+    // paused), clamped so it stays within [0, 24 h] — shrinking a running hall to 0 ends it. An Ended
+    // hall can be resurrected as running by a positive Delta within a 10-minute grace period
+    // (EndsAt := now + Delta). Rejected otherwise.
     [CommandHandler]
     Task OnAdjustDuration(Rooms_AdjustDuration command, CancellationToken cancellationToken = default);
 }
@@ -52,7 +64,9 @@ public sealed record Rooms_Create(
     Session Session,
     string Title,
     TimeSpan Duration,
-    bool IsPrivate = false
+    bool IsPrivate = false,
+    string Link = "",
+    string Description = ""
 ) : ISessionCommand<Room>;
 
 [MessagePackObject(true)]
@@ -85,6 +99,22 @@ public sealed record Rooms_SetTitle(
     Session Session,
     string RoomId,
     string Title
+) : ISessionCommand<Unit>;
+
+[MessagePackObject(true)]
+// ReSharper disable once InconsistentNaming
+public sealed record Rooms_SetLink(
+    Session Session,
+    string RoomId,
+    string Link
+) : ISessionCommand<Unit>;
+
+[MessagePackObject(true)]
+// ReSharper disable once InconsistentNaming
+public sealed record Rooms_SetDescription(
+    Session Session,
+    string RoomId,
+    string Description
 ) : ISessionCommand<Unit>;
 
 [MessagePackObject(true)]

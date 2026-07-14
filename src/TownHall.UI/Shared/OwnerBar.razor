@@ -3,9 +3,14 @@
 @inject IRooms Rooms
 @inject ISnackbar Snackbar
 
-<MudExpansionPanels Class="mb-4" Elevation="2">
-    <MudExpansionPanel Text="Owner tools" Dense="true">
-        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap">
+<MudPaper Class="pa-3 mb-4" Elevation="2">
+    <div class="d-flex align-center" style="cursor: pointer;" @onclick="@(() => _expanded = !_expanded)">
+        <MudText Typo="Typo.subtitle1">Owner tools</MudText>
+        <MudSpacer />
+        <MudIcon Icon="@(_expanded ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)" />
+    </div>
+    @if (_expanded) {
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap" Class="mt-3">
             <MudCheckBox Value="@Room.IsPrivate" T="bool" ValueChanged="SetIsPrivate" Dense="true"
                          Disabled="@IsEnded" Label="Private" />
             <MudSpacer />
@@ -17,18 +22,39 @@
         </MudStack>
         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mt-2">
             <MudTextField @bind-Value="_title" Immediate="true" MaxLength="80" Margin="Margin.Dense"
-                          Label="Title" Variant="Variant.Outlined" Disabled="@IsEnded" />
+                          Label="Title" Variant="Variant.Outlined" />
             <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary"
-                       Disabled="@(IsEnded || _title.Trim().Length == 0 || _title.Trim() == Room.Title)"
+                       Disabled="@(_title.Trim().Length == 0 || _title.Trim() == Room.Title)"
                        OnClick="Rename">
                 Rename
             </MudButton>
         </MudStack>
-    </MudExpansionPanel>
-</MudExpansionPanels>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mt-2">
+            <MudTextField @bind-Value="_link" Immediate="true" MaxLength="500" Margin="Margin.Dense"
+                          Label="Live-event link" Placeholder="https://zoom.us/j/…" Variant="Variant.Outlined" />
+            <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary"
+                       Disabled="@(_link.Trim() == Room.Link)"
+                       OnClick="SaveLink">
+                Save
+            </MudButton>
+        </MudStack>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mt-2">
+            <MudTextField @bind-Value="_description" Immediate="true" Lines="2" MaxLength="1000" Margin="Margin.Dense"
+                          Label="Description" Variant="Variant.Outlined" />
+            <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary"
+                       Disabled="@(_description.Trim() == Room.Description)"
+                       OnClick="SaveDescription">
+                Save
+            </MudButton>
+        </MudStack>
+    }
+</MudPaper>
 
 @code {
+    private bool _expanded;
     private string _title = "";
+    private string _link = "";
+    private string _description = "";
 
     [Parameter, EditorRequired] public Room Room { get; set; } = null!;
 
@@ -36,9 +62,11 @@
 
     protected override void OnInitialized()
     {
-        // The title field and panel expansion are local state changed via events
+        // The edit fields and panel expansion are local state changed via events
         MustRenderAfterEvent = true;
         _title = Room.Title;
+        _link = Room.Link;
+        _description = Room.Description;
     }
 
     protected override async Task<string?> ComputeState(CancellationToken cancellationToken)
@@ -52,6 +80,12 @@
 
     private Task Rename()
         => UICommander.Run(new Rooms_SetTitle(Session, Room.Id, _title));
+
+    private Task SaveLink()
+        => UICommander.Run(new Rooms_SetLink(Session, Room.Id, _link));
+
+    private Task SaveDescription()
+        => UICommander.Run(new Rooms_SetDescription(Session, Room.Id, _description));
 
     private async Task CopyOwnerLink()
     {

@@ -22,12 +22,12 @@
         <MudSpacer />
         <SessionNameEditor />
         <RenderModeSwitch />
+        <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Rounded.LightMode : Icons.Material.Outlined.DarkMode)"
+                       Color="Color.Inherit" OnClick="@(() => _isDarkMode = !_isDarkMode)" />
         @if (IsHome) {
             <MudIconButton Icon="@Icons.Custom.Brands.GitHub" Color="Color.Inherit" Size="Size.Small"
                            Href="https://github.com/ActualLab/Fusion.TownHall" Target="_blank" />
         }
-        <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Rounded.LightMode : Icons.Material.Outlined.DarkMode)"
-                       Color="Color.Inherit" OnClick="@(() => _isDarkMode = !_isDarkMode)" />
     </MudAppBar>
     <MudMainContent Class="pt-16 pa-4">
         <MudContainer MaxWidth="MaxWidth.Large">

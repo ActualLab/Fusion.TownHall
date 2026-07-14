@@ -8,7 +8,7 @@
         </MudText>
     }
     @foreach (var index in indexes) {
-        <QuestionCard @key="@index" RoomId="@RoomId" Index="@index" IsOwner="@IsOwner" IsLive="@IsLive" />
+        <QuestionCard @key="@index" RoomId="@RoomId" Index="@index" IsOwner="@IsOwner" IsLive="@IsLive" IsEnded="@IsEnded" />
     }
 }
 else {
@@ -20,6 +20,7 @@ else {
     [Parameter] public QuestionTab Tab { get; set; }
     [Parameter] public bool IsOwner { get; set; }
     [Parameter] public bool IsLive { get; set; }
+    [Parameter] public bool IsEnded { get; set; }
 
     protected override async Task<ImmutableArray<long>> ComputeState(CancellationToken cancellationToken)
     {

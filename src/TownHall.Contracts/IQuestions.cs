@@ -40,13 +40,14 @@ public interface IQuestions : IComputeService
     [CommandHandler]
     Task OnVote(Questions_Vote command, CancellationToken cancellationToken = default);
 
-    // Owner-only, allowed while Paused or Live, rejected once Ended. Marks Open -> Resolved with
-    // an optional note (trimmed 0..500 chars); resolving a Resolved question overwrites the note.
+    // Owner-only. Marks Open -> Resolved with an optional single-paragraph note (<=500 chars);
+    // re-resolving overwrites the note but preserves the original resolution time. Allowed even
+    // after Ended, so notes stay editable (one owner resolves, another can add/edit the note later).
     [CommandHandler]
     Task OnResolve(Questions_Resolve command, CancellationToken cancellationToken = default);
 
-    // Owner-only, same lifecycle gating as OnResolve. Hard delete: the question, its votes, and
-    // its resolution disappear. Idempotent.
+    // Owner-only, allowed while Paused or Live, rejected once Ended. Hard delete: the question,
+    // its votes, and its resolution disappear. Idempotent.
     [CommandHandler]
     Task OnDelete(Questions_Delete command, CancellationToken cancellationToken = default);
 }

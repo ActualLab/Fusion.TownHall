@@ -28,30 +28,42 @@
              Color="@(room.Status switch { RoomStatus.Live => Color.Success, RoomStatus.Ended => Color.Error, _ => Color.Default })">
         @room.Status
     </MudChip>
-    @if (room.Status != RoomStatus.Paused) {
-        <CountdownText ClosesAt="@room.ClosesAt" Typo="Typo.body1" />
+    @if (room.Status != RoomStatus.Ended) {
+        <CountdownText EndsAt="@room.EndsAt" PausedAt="@room.PausedAt" Typo="Typo.body1" />
     }
     @if (m.IsOwner) {
-        <MudButton Variant="Variant.Outlined" Size="Size.Small" Disabled="@(room.Status == RoomStatus.Ended)"
-                   OnClick="@(() => AdjustDuration(-5))">
-            −5 min
-        </MudButton>
-        <MudButton Variant="Variant.Outlined" Size="Size.Small"
-                   OnClick="@(() => AdjustDuration(5))">
+        @if (room.Status != RoomStatus.Ended) {
+            <MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="@(() => AdjustDuration(-5))">
+                −5 min
+            </MudButton>
+        }
+        <MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="@(() => AdjustDuration(5))">
             +5 min
         </MudButton>
-        <MudButton Variant="Variant.Filled" Size="Size.Small"
-                   Color="@(room.Status == RoomStatus.Live ? Color.Warning : Color.Success)"
-                   Disabled="@(room.Status == RoomStatus.Ended)"
-                   OnClick="ToggleLive">
-            @(room.Status == RoomStatus.Live ? "Pause" : "Resume")
-        </MudButton>
+        @if (room.Status != RoomStatus.Ended) {
+            <MudButton Variant="Variant.Filled" Size="Size.Small"
+                       Color="@(room.Status == RoomStatus.Live ? Color.Warning : Color.Success)"
+                       OnClick="ToggleLive">
+                @(room.Status == RoomStatus.Live ? "Pause" : "Resume")
+            </MudButton>
+        }
     }
     <MudSpacer />
     <MudText Typo="Typo.body2" Class="mud-text-secondary">
         @m.Stats.AudienceCount @(m.Stats.AudienceCount == 1 ? "participant" : "participants")
     </MudText>
 </MudStack>
+
+@if (room.Description.Length > 0) {
+    <MudText Typo="Typo.body1" Class="mb-2">@room.Description</MudText>
+}
+@if (room.Link.Length > 0) {
+    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Wrap="Wrap.Wrap" Class="mb-3">
+        <MudIcon Icon="@Icons.Material.Filled.Sensors" Size="Size.Small" Color="Color.Error" />
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">Event link:</MudText>
+        <MudLink Href="@room.Link" Target="_blank" Typo="Typo.body2">@room.Link</MudLink>
+    </MudStack>
+}
 
 @if (room.Status == RoomStatus.Paused) {
     <MudAlert Severity="Severity.Info" Class="mb-4">This town hall is paused — hold tight!</MudAlert>
@@ -64,40 +76,66 @@ else if (room.Status == RoomStatus.Ended) {
     <OwnerBar Room="@room" />
 }
 
+@* On mobile the two columns stack, burying the mood section, so a toggle switches between them *@
+<div class="d-flex d-md-none mb-3" style="gap: 8px;">
+    <MudButton Variant="@(_mobileTab == MobileTab.Questions ? Variant.Filled : Variant.Outlined)"
+               Color="Color.Primary" Class="flex-grow-1" StartIcon="@Icons.Material.Filled.QuestionMark"
+               OnClick="@(() => _mobileTab = MobileTab.Questions)">
+        Questions
+    </MudButton>
+    <MudButton Variant="@(_mobileTab == MobileTab.Mood ? Variant.Filled : Variant.Outlined)"
+               Color="Color.Primary" Class="flex-grow-1" StartIcon="@Icons.Material.Filled.Mood"
+               OnClick="@(() => _mobileTab = MobileTab.Mood)">
+        Mood
+    </MudButton>
+</div>
 <MudGrid>
-    <MudItem xs="12" md="8">
+    <MudItem xs="12" md="8" Class="@($"{(_mobileTab == MobileTab.Questions ? "" : "d-none")} d-md-block")">
         <QuestionComposer RoomId="@RoomId" IsLive="@(room.Status == RoomStatus.Live)" />
         @if (m.Stats.OpenQuestionCount + m.Stats.ResolvedQuestionCount > 0) {
             <MudTabs Elevation="1" Rounded="true" ApplyEffectsToContainer="true">
                 <MudTabPanel Text="@($"Top ({m.Stats.OpenQuestionCount})")">
                     <div class="pt-3 px-3 pb-1">
                         <QuestionList RoomId="@RoomId" Tab="QuestionTab.Top" IsOwner="@m.IsOwner"
-                                      IsLive="@(room.Status == RoomStatus.Live)" />
+                                      IsLive="@(room.Status == RoomStatus.Live)"
+                                      IsEnded="@(room.Status == RoomStatus.Ended)" />
                     </div>
                 </MudTabPanel>
                 <MudTabPanel Text="@($"Recent ({m.Stats.OpenQuestionCount})")">
                     <div class="pt-3 px-3 pb-1">
                         <QuestionList RoomId="@RoomId" Tab="QuestionTab.Recent" IsOwner="@m.IsOwner"
-                                      IsLive="@(room.Status == RoomStatus.Live)" />
+                                      IsLive="@(room.Status == RoomStatus.Live)"
+                                      IsEnded="@(room.Status == RoomStatus.Ended)" />
                     </div>
                 </MudTabPanel>
                 <MudTabPanel Text="@($"Resolved ({m.Stats.ResolvedQuestionCount})")">
                     <div class="pt-3 px-3 pb-1">
                         <QuestionList RoomId="@RoomId" Tab="QuestionTab.Resolved" IsOwner="@m.IsOwner"
-                                      IsLive="@(room.Status == RoomStatus.Live)" />
+                                      IsLive="@(room.Status == RoomStatus.Live)"
+                                      IsEnded="@(room.Status == RoomStatus.Ended)" />
+                    </div>
+                </MudTabPanel>
+                <MudTabPanel Text="Trending 🔥">
+                    <div class="pt-3 px-3 pb-1">
+                        <TrendingPanel RoomId="@RoomId" />
                     </div>
                 </MudTabPanel>
             </MudTabs>
         }
     </MudItem>
-    <MudItem xs="12" md="4">
+    <MudItem xs="12" md="4" Class="@($"{(_mobileTab == MobileTab.Mood ? "" : "d-none")} d-md-block")">
         <MoodPanel RoomId="@RoomId" IsLive="@(room.Status == RoomStatus.Live)" />
-        <TrendingPanel RoomId="@RoomId" />
     </MudItem>
 </MudGrid>
 
 @code {
+    private MobileTab _mobileTab = MobileTab.Questions;
+
     [Parameter] public string RoomId { get; set; } = "";
+
+    protected override void OnInitialized()
+        // The mobile Questions/Mood toggle is local state changed via events
+        => MustRenderAfterEvent = true;
 
     protected override async Task<Model> ComputeState(CancellationToken cancellationToken)
     {
@@ -127,6 +165,8 @@ else if (room.Status == RoomStatus.Ended) {
         => UICommander.Run(new Rooms_SetLive(Session, RoomId, State.Value.Room!.Status != RoomStatus.Live));
 
     // Nested types
+
+    private enum MobileTab { Questions, Mood }
 
     public sealed record Model(Room? Room, bool IsOwner, RoomStats Stats);
 }

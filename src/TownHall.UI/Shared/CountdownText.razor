@@ -1,29 +1,41 @@
 @using TownHall.UI.Services
 @implements IDisposable
 
-@{
-    var left = ClosesAt - Moment.Now;
-    // Once the 10-minute resurrection grace period is over, the clock disappears
-    if (left < -GracePeriod)
-        return;
+<style>
+    @@keyframes townhall-countdown-blink {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0; }
+    }
+    .townhall-countdown-blink { animation: townhall-countdown-blink 1s ease-in-out infinite; }
+</style>
 
-    var isClosingSoon = left < TimeSpan.FromMinutes(5);
+@{
+    // While paused the remaining time is frozen at EndsAt - PausedAt; while running it ticks toward EndsAt.
+    // A running hall flips to Ended (and this clock is then hidden) at 0, so never show negative time.
+    var left = EndsAt - (PausedAt ?? Moment.Now);
+    if (left < TimeSpan.Zero)
+        left = TimeSpan.Zero;
+    var seconds = left.TotalSeconds;
+    var color = seconds < 60 ? "var(--mud-palette-error)"    // under a minute: red
+        : seconds <= 300 ? "var(--mud-palette-warning)"      // five minutes or less: yellow
+        : "";
+    // The last 10 seconds of a running countdown flash to grab attention
+    var isBlinking = seconds <= 10 && PausedAt == null;
 }
-<MudText Typo="@Typo"
-         Style="@(isClosingSoon ? "color: var(--mud-palette-error); font-weight: 700;" : "")">
-    @TimeText.Countdown(left) @(left.Ticks < 0 ? "overtime" : "left")
+<MudText Typo="@Typo" Class="@(isBlinking ? "townhall-countdown-blink" : "")"
+         Style="@(color.Length > 0 ? $"color: {color}; font-weight: 700;" : "")">
+    @TimeText.Countdown(left) left
 </MudText>
 
 @code {
-    private static readonly TimeSpan GracePeriod = TimeSpan.FromMinutes(10);
-
     private System.Threading.Timer? _timer;
 
-    [Parameter] public Moment ClosesAt { get; set; }
+    [Parameter] public Moment EndsAt { get; set; }
+    [Parameter] public Moment? PausedAt { get; set; }
     [Parameter] public Typo Typo { get; set; } = Typo.h5;
 
     protected override void OnInitialized()
-        // Pure client-side ticking over the already-known ClosesAt
+        // Re-render every second so a running countdown ticks (a paused one stays frozen)
         => _timer = new System.Threading.Timer(_ => _ = InvokeAsync(StateHasChanged), null, 1000, 1000);
 
     public void Dispose()

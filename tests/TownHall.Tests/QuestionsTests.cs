@@ -115,6 +115,25 @@ public abstract class QuestionsTests(TestAppHost host) : TestBase(host)
     }
 
     [Fact]
+    public async Task ResolutionNoteEditableAfterEndedAndPreservesTime()
+    {
+        var owner = Session.New();
+        var room = await CreateRoom(owner);
+        var q = await Call(new Questions_Post(owner, room.Id, "Resolve later?"));
+        // Mark resolved with no note
+        await Call(new Questions_Resolve(owner, room.Id, q.Index, ""));
+        var resolvedAt = (await Questions.GetResolution(owner, room.Id, q.Index))!.ResolvedAt;
+
+        // End the room, then add the note after the fact
+        await Call(new Rooms_AdjustDuration(owner, room.Id, TimeSpan.FromHours(-2)));
+        await ReadWhen(() => Rooms.Get(owner, room.Id), r => r!.Status == RoomStatus.Ended);
+        await Call(new Questions_Resolve(owner, room.Id, q.Index, "  Answered\nlater  "));
+        var res = await ReadWhen(() => Questions.GetResolution(owner, room.Id, q.Index), r => r!.Note.Length > 0);
+        Assert.Equal("Answered later", res!.Note); // Single paragraph
+        Assert.Equal(resolvedAt, res.ResolvedAt);  // Original resolution time preserved
+    }
+
+    [Fact]
     public async Task OnDeleteRemovesEverything()
     {
         var owner = Session.New();

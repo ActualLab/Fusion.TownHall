@@ -2,26 +2,23 @@
 @inject IRoomStats RoomStats
 @inject IQuestions Questions
 
-<MudPaper Class="pa-3" Elevation="1">
-    <MudText Typo="Typo.subtitle1" Class="mb-2">Trending 🔥</MudText>
-    @if (State.ValueOrDefault is { IsDefault: false } rows) {
-        @if (rows.Length == 0) {
-            <MudText Typo="Typo.body2" Class="mud-text-secondary">Nothing's trending right now.</MudText>
-        }
-        @foreach (var row in rows) {
-            <div style="cursor: pointer;" class="mb-2" @key="@row.Index"
-                 @onclick="@(() => JS.InvokeVoidAsync("townHall.scrollTo", $"q-{row.Index}"))">
-                <MudText Typo="Typo.body2" Style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                    @row.Text
-                </MudText>
-                <MudText Typo="Typo.caption" Color="Color.Primary">+@row.RecentVoteCount in last 5 min</MudText>
-            </div>
-        }
+@if (State.ValueOrDefault is { IsDefault: false } rows) {
+    @if (rows.Length == 0) {
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">Nothing's trending right now.</MudText>
     }
-    else {
-        <MudProgressCircular Indeterminate="true" Size="Size.Small" />
+    @foreach (var row in rows) {
+        <div style="cursor: pointer;" class="mb-2" @key="@row.Index"
+             @onclick="@(() => JS.InvokeVoidAsync("townHall.scrollTo", $"q-{row.Index}"))">
+            <MudText Typo="Typo.body2" Style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                @row.Text
+            </MudText>
+            <MudText Typo="Typo.caption" Color="Color.Primary">+@row.RecentVoteCount in last 5 min</MudText>
+        </div>
     }
-</MudPaper>
+}
+else {
+    <MudProgressCircular Indeterminate="true" Size="Size.Small" />
+}
 
 @code {
     [Parameter, EditorRequired] public string RoomId { get; set; } = "";

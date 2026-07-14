@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/TownHall.Contracts/TownHall.Contracts.csproj" />
+    <Project Path="src/TownHall.Db/TownHall.Db.csproj" />
     <Project Path="src/TownHall.Host/TownHall.Host.csproj" />
     <Project Path="src/TownHall.UI/TownHall.UI.csproj" />
   </Folder>

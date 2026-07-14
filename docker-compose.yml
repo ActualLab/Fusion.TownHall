@@ -1,0 +1,16 @@
+# Local dev dependencies. Start this before running the app:
+#   docker compose up -d
+#
+# The db service replicates the one from ActualLab.Fusion.Samples/docker-compose.yml,
+# but pins the Postgres major version so a persistent prod DB can't be broken by
+# an image upgrade (deploy/docker-compose.prod.yml runs the same version).
+services:
+  db:
+    image: "postgres:18"
+    environment:
+      POSTGRES_PASSWORD: "postgres"
+      POSTGRES_USER: "postgres"
+      POSTGRES_HOST_AUTH_METHOD: "password"
+    ports:
+      - "5432:5432"
+    entrypoint: ["docker-entrypoint.sh", "-c", "shared_buffers=256MB", "-c", "max_connections=1000"]

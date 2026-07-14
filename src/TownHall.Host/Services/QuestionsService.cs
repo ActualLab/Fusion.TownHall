@@ -1,6 +1,6 @@
 using ActualLab.Fusion.EntityFramework;
 using Microsoft.EntityFrameworkCore;
-using TownHall.Host.Db;
+using TownHall.Db;
 
 namespace TownHall.Host.Services;
 
@@ -70,7 +70,7 @@ public class QuestionsService(IServiceProvider services) : DbServiceBase<AppDbCo
         await using var _1 = dbContext.ConfigureAwait(false);
 
         var dbRoom = await dbContext.GetRoom(roomId, cancellationToken).ConfigureAwait(false);
-        var now = Clocks.SystemClock.Now;
+        var now = Clocks.SystemClock.Now.ToDbPrecision();
         if (dbRoom.GetStatus(now) != RoomStatus.Live)
             throw new InvalidOperationException("This town hall is not live.");
 
@@ -104,7 +104,7 @@ public class QuestionsService(IServiceProvider services) : DbServiceBase<AppDbCo
         await using var _1 = dbContext.ConfigureAwait(false);
 
         var dbRoom = await dbContext.GetRoom(roomId, cancellationToken).ConfigureAwait(false);
-        var now = Clocks.SystemClock.Now;
+        var now = Clocks.SystemClock.Now.ToDbPrecision();
         if (dbRoom.GetStatus(now) != RoomStatus.Live)
             throw new InvalidOperationException("This town hall is not live.");
 
@@ -155,7 +155,7 @@ public class QuestionsService(IServiceProvider services) : DbServiceBase<AppDbCo
         // Resolution (and its note) is question metadata, so it stays editable even after Ended —
         // one owner can mark a question resolved and another can add or edit the note later
         await dbContext.RequireRoomOwner(roomId, session.Id, cancellationToken).ConfigureAwait(false);
-        var now = Clocks.SystemClock.Now;
+        var now = Clocks.SystemClock.Now.ToDbPrecision();
 
         var dbQuestion = await dbContext.Questions
             .FirstOrDefaultAsync(q => q.Key == DbQuestion.ComposeKey(roomId, index), cancellationToken)
@@ -189,7 +189,7 @@ public class QuestionsService(IServiceProvider services) : DbServiceBase<AppDbCo
 
         var dbRoom = await dbContext.GetRoom(roomId, cancellationToken).ConfigureAwait(false);
         await dbContext.RequireRoomOwner(roomId, session.Id, cancellationToken).ConfigureAwait(false);
-        var now = Clocks.SystemClock.Now;
+        var now = Clocks.SystemClock.Now.ToDbPrecision();
         if (dbRoom.GetStatus(now) == RoomStatus.Ended)
             throw new InvalidOperationException("This town hall has ended.");
 

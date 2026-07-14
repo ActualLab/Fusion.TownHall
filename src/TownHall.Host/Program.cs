@@ -1,9 +1,9 @@
 using System.Data;
 using ActualLab.Fusion.EntityFramework;
+using ActualLab.Fusion.EntityFramework.Npgsql;
 using ActualLab.Fusion.EntityFramework.Operations;
 using ActualLab.Fusion.Server;
 using ActualLab.Interception;
-using ActualLab.IO;
 using ActualLab.Rpc;
 using ActualLab.Rpc.Server;
 using Microsoft.AspNetCore.Hosting.StaticWebAssets;
@@ -12,7 +12,7 @@ using Microsoft.Extensions.Configuration.Memory;
 using TownHall;
 using TownHall.Host;
 using TownHall.Host.Components.Pages;
-using TownHall.Host.Db;
+using TownHall.Db;
 using TownHall.Host.Services;
 using TownHall.UI;
 
@@ -48,12 +48,12 @@ var app = builder.Build();
 StaticLog.Factory = app.Services.LoggerFactory();
 ConfigureApp();
 
-// Ensure the DB is created
+// Migrate the DB to the latest schema (see src/TownHall.Db/Migrations)
 var dbContextFactory = app.Services.GetRequiredService<IDbContextFactory<AppDbContext>>();
 await using (var dbContext = await dbContextFactory.CreateDbContextAsync()) {
     if (hostSettings.MustRecreateDb)
         await dbContext.Database.EnsureDeletedAsync();
-    await dbContext.Database.EnsureCreatedAsync();
+    await dbContext.Database.MigrateAsync();
 }
 
 // Run the app
@@ -86,7 +86,7 @@ void ConfigureServices()
             operations.ConfigureEventLogReader(_ => new() {
                 CheckPeriod = TimeSpan.FromSeconds(env.IsDevelopment() ? 60 : 5),
             });
-            operations.AddFileSystemOperationLogWatcher();
+            operations.AddNpgsqlOperationLogWatcher();
         });
         // Batched by-key lookups for compute-method reads
         db.AddEntityResolver<string, DbRoom>();
@@ -94,11 +94,10 @@ void ConfigureServices()
         db.AddEntityResolver<string, DbQuestion>();
         // ReSharper disable once VariableHidesOuterVariable
         db.Services.AddTransientDbContextFactory<AppDbContext>((c, db) => {
-            var appTempDir = FilePath.GetApplicationTempDirectory("", true);
-            // Bump the version suffix on incompatible schema changes: EnsureCreated doesn't migrate,
-            // and a fresh file avoids stale columns from a previous schema.
-            var dbPath = appTempDir & "TownHall_v4.db";
-            db.UseSqlite($"Data Source={dbPath}");
+            db.UseNpgsql(hostSettings.PostgreSql, npgsql => {
+                npgsql.EnableRetryOnFailure(0);
+            });
+            db.UseNpgsqlHintFormatter();
             if (env.IsDevelopment())
                 db.EnableSensitiveDataLogging();
         });

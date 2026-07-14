@@ -1,11 +1,18 @@
 # Production stack for hosting TownHall as a website on the shared VM:
 #   townhall-app -> townhall.actuallab.net
+#   townhall-db  -> PostgreSQL, reachable only from townhall-app
 #
 # TLS + routing are handled by the shared edge Caddy (from the BoardGames
-# deployment), which owns ports 80/443 on this host. This container publishes
-# no ports; it joins that Caddy's network ("boardgames_default") as an external
-# network and is reached by its container name. TownHall uses Sqlite, so there's
-# no database service here.
+# deployment), which owns ports 80/443 on this host. Neither container
+# publishes ports; the app joins that Caddy's network ("boardgames_default")
+# as an external network and is reached by its container name.
+#
+# The DB publishes no ports at all and sits on the stack-internal network, so
+# the only way to reach it is via SSH to the VM:
+#   docker exec -it townhall-db psql -U postgres fusion_townhall
+# Its data is persisted on the host in /opt/apps/townhall-data/postgres
+# (the postgres:18 image keeps PGDATA under /var/lib/postgresql/<major>/...,
+# so the mount covers /var/lib/postgresql).
 #
 # Usage on the host:
 #   cd deploy && docker compose -f docker-compose.prod.yml up -d --build
@@ -24,12 +31,40 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:8080"
       ASPNETCORE_ENVIRONMENT: "Production"
+      HostSettings__PostgreSql: "Server=townhall-db;Database=fusion_townhall;Port=5432;User Id=postgres;Password=postgres"
+    depends_on:
+      townhall-db:
+        condition: service_healthy
     networks:
       - edge
+      - internal
+
+  townhall-db:
+    # Keep the major version in sync with the root docker-compose.yml; bump both
+    # deliberately (a major upgrade needs a data migration, the data dir persists).
+    image: "postgres:18"
+    container_name: townhall-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: "postgres"
+      POSTGRES_USER: "postgres"
+      POSTGRES_HOST_AUTH_METHOD: "password"
+    volumes:
+      - /opt/apps/townhall-data/postgres:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - internal
+    entrypoint: ["docker-entrypoint.sh", "-c", "shared_buffers=256MB", "-c", "max_connections=1000"]
 
 networks:
   # The shared edge network created by the BoardGames deployment; the edge Caddy
-  # lives here and routes townhall.actuallab.net to the container above.
+  # lives here and routes townhall.actuallab.net to townhall-app.
   edge:
     name: boardgames_default
     external: true
+  # The stack-private network the DB lives on; not reachable from outside.
+  internal:

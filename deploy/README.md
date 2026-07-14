@@ -3,24 +3,38 @@
 Hosts TownHall as a public website on the shared VM, behind Cloudflare:
 
 - `townhall.actuallab.net` → TownHall (`townhall-app`)
+- `townhall-db` → PostgreSQL for the app; not exposed anywhere
 
 ## Topology
 
 ```
-Browser ─HTTPS─> Cloudflare (proxied) ─HTTPS─> edge Caddy :443 ─HTTP─> app :8080
+Browser ─HTTPS─> Cloudflare (proxied) ─HTTPS─> edge Caddy :443 ─HTTP─> app :8080 ──> db :5432
 ```
 
 The **edge Caddy** is the one from the BoardGames deployment on the same VM: it
 owns ports 80/443, terminates TLS with a Cloudflare wildcard Origin cert
 (`*.actuallab.net`), and reverse-proxies each subdomain to the matching
-container. This container publishes no ports and joins that Caddy's network
-(`boardgames_default`, referenced as the external `edge` network). TownHall uses
-Sqlite, so there's no database service.
+container. The app container publishes no ports and joins that Caddy's network
+(`boardgames_default`, referenced as the external `edge` network).
+
+**PostgreSQL** (`townhall-db`, `postgres:18` — same version as the local
+`docker-compose.yml`) publishes no ports either and sits on the stack-internal
+network, so it's reachable only from `townhall-app`. To access it, SSH to the
+VM and run:
+
+```bash
+docker exec -it townhall-db psql -U postgres fusion_townhall
+```
+
+Data is persisted on the host in `/opt/apps/townhall-data/postgres`, so it
+survives redeploys and container recreation. The app applies EF Core
+migrations (`src/TownHall.Db/Migrations`) on startup.
 
 ## First-time host setup
 
 ```bash
 git clone https://github.com/ActualLab/Fusion.TownHall /opt/apps/townhall
+sudo mkdir -p /opt/apps/townhall-data/postgres
 cd /opt/apps/townhall/deploy
 docker compose -f docker-compose.prod.yml up -d --build
 ```
@@ -43,4 +57,5 @@ Force a deploy immediately: `deploy/deploy.sh --force`.
 
 ## Notes
 
-- Sqlite data is in-container and resets on redeploy (fine for a demo).
+- The Postgres major version is pinned (`postgres:18`) in both compose files;
+  bump both together and plan a data migration — the data dir persists.

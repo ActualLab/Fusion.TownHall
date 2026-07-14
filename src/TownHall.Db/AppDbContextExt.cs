@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
-namespace TownHall.Host.Db;
+namespace TownHall.Db;
 
 public static class AppDbContextExt
 {

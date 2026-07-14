@@ -14,6 +14,23 @@ read it now.
 first reading [CODING_STYLE.md → "Regular comments, docstrings, XML
 documentation comments"](CODING_STYLE.md#regular-comments-docstrings-xml-documentation-comments).
 
+# Database & migrations
+
+The app is PostgreSQL-only. The EF Core model (entities + `AppDbContext`)
+lives in `src/TownHall.Db`; migrations live in `src/TownHall.Db/Migrations`
+and are applied by `TownHall.Host` on startup.
+
+**Any change to the DB model MUST come with a matching migration** in the
+same commit:
+
+```bash
+dotnet ef migrations add <ChangeName> --project src/TownHall.Db
+```
+
+Local Postgres comes from the root `docker-compose.yml`
+(`docker compose up -d`); the app and the tests expect it on
+`localhost:5432` with `postgres`/`postgres` credentials.
+
 # AI session logs
 
 Every conversation with an AI agent in this repo must be logged to the

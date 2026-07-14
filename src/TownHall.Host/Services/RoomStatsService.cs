@@ -1,6 +1,6 @@
 using ActualLab.Fusion.EntityFramework;
 using Microsoft.EntityFrameworkCore;
-using TownHall.Host.Db;
+using TownHall.Db;
 
 namespace TownHall.Host.Services;
 

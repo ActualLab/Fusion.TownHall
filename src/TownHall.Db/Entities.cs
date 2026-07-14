@@ -1,9 +1,10 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace TownHall.Host.Db;
+namespace TownHall.Db;
 
-// All DateTime values are UTC; values read back from Sqlite have Kind == Unspecified,
-// so they're converted via .DefaultKind(DateTimeKind.Utc) wherever a Moment is needed.
+// All DateTime values are UTC (Npgsql maps them to "timestamp with time zone" and
+// rejects writes with Kind != Utc); reads are normalized via .DefaultKind(DateTimeKind.Utc)
+// wherever a Moment is needed.
 
 public class DbRoom
 {

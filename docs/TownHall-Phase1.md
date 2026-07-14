@@ -355,7 +355,9 @@ on the client, where they surface as a toast/snackbar message.
 
 Sqlite via EF Core — the setup is already in place: `AppDbContext`
 (`DbContextBase`), Fusion's EF operations framework (operation/event logs +
-file-system log watcher), `EnsureCreated` on start, no migrations. Add
+file-system log watcher), `EnsureCreated` on start, no migrations.
+*(Superseded after Phase 1: the app is PostgreSQL-only now, with EF Core
+migrations in `src/TownHall.Db/Migrations` applied on start.)* Add
 simple tables for domain records (rooms, owners, questions, votes,
 resolutions, moods); ordering/aggregation is computed on read — Fusion's
 computed caching makes repeated reads cheap, and writes invalidate exactly
@@ -480,7 +482,8 @@ update in real time.
 - No moderation beyond resolve/delete (no bans, no rate limiting, no
   profanity filtering).
 - No migrations — `EnsureCreated` is enough; deleting the Sqlite file on
-  schema changes is fine.
+  schema changes is fine. *(Superseded after Phase 1: PostgreSQL + EF Core
+  migrations.)*
 - No transports beside Fusion RPC (no SignalR, no custom WebSockets/SSE);
   no server-side background timers (room Ended state, presence expiry, and
   mood-aggregate membership are evaluated lazily at read time, with

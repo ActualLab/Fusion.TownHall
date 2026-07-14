@@ -20,15 +20,27 @@ See [docs/TownHall-Phase1.md](docs/TownHall-Phase1.md) for the Phase 1 spec —
 the Fusion-based implementation, where every view updates in real time via
 Fusion's compute services and invalidation.
 
+The app is generated and kept updated with
+[Claude Code](https://claude.com/claude-code). The full interaction log —
+every user prompt, with Claude's responses summarized to a bare minimum —
+lives in [docs/ai-sessions/](docs/ai-sessions/).
+
 ## How to run
 
+The app stores its data in PostgreSQL, so start one first — the repo's
+[docker-compose.yml](docker-compose.yml) provides it (on `localhost:5432`,
+login `postgres`, password `postgres`):
+
 ```bash
+docker compose up -d
 dotnet run --project src/TownHall.Host
 ```
 
-Then open http://localhost:5136. Tests (`dotnet test`) cover every API method
-twice — once against the server DI container, once over Fusion RPC against a
-test host on a random port.
+Then open http://localhost:5136. The app creates the `fusion_townhall`
+database on first run by applying EF Core migrations from
+`src/TownHall.Db/Migrations`. Tests (`dotnet test`) need the same Postgres;
+they cover every API method twice — once against the server DI container,
+once over Fusion RPC against a test host on a random port.
 
 ## Try it
 

@@ -2,10 +2,15 @@ using ActualLab.Fusion.EntityFramework;
 using ActualLab.Fusion.EntityFramework.Operations;
 using Microsoft.EntityFrameworkCore;
 
-namespace TownHall.Host.Db;
+namespace TownHall.Db;
 
 public class AppDbContext(DbContextOptions options) : DbContextBase(options)
 {
+    // The local docker-compose Postgres; HostSettings.PostgreSql and the design-time
+    // factory both default to it.
+    public const string DefaultConnectionString =
+        "Server=localhost;Database=fusion_townhall;Port=5432;User Id=postgres;Password=postgres";
+
     public DbSet<DbRoom> Rooms { get; protected set; } = null!;
     public DbSet<DbRoomOwner> RoomOwners { get; protected set; } = null!;
     public DbSet<DbParticipant> Participants { get; protected set; } = null!;

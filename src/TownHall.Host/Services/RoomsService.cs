@@ -1,6 +1,6 @@
 using ActualLab.Fusion.EntityFramework;
 using Microsoft.EntityFrameworkCore;
-using TownHall.Host.Db;
+using TownHall.Db;
 
 namespace TownHall.Host.Services;
 
@@ -68,7 +68,7 @@ public class RoomsService(IServiceProvider services) : DbServiceBase<AppDbContex
         var id = "th-" + NextRandomString(5);
         while (await dbContext.Rooms.AnyAsync(r => r.Id == id, cancellationToken).ConfigureAwait(false))
             id = "th-" + NextRandomString(5);
-        var now = Clocks.SystemClock.Now;
+        var now = Clocks.SystemClock.Now.ToDbPrecision();
         var endsAt = now + duration;
         var dbRoom = new DbRoom {
             Id = id,
@@ -127,7 +127,7 @@ public class RoomsService(IServiceProvider services) : DbServiceBase<AppDbContex
 
         var dbRoom = await dbContext.GetRoom(roomId, cancellationToken).ConfigureAwait(false);
         await dbContext.RequireRoomOwner(roomId, session.Id, cancellationToken).ConfigureAwait(false);
-        var now = Clocks.SystemClock.Now;
+        var now = Clocks.SystemClock.Now.ToDbPrecision();
         if (dbRoom.GetStatus(now) == RoomStatus.Ended)
             throw new InvalidOperationException("This town hall has ended.");
         var isRunning = dbRoom.PausedAt == null;
@@ -162,7 +162,7 @@ public class RoomsService(IServiceProvider services) : DbServiceBase<AppDbContex
 
         var dbRoom = await dbContext.GetRoom(roomId, cancellationToken).ConfigureAwait(false);
         await dbContext.RequireRoomOwner(roomId, session.Id, cancellationToken).ConfigureAwait(false);
-        var now = Clocks.SystemClock.Now;
+        var now = Clocks.SystemClock.Now.ToDbPrecision();
         if (dbRoom.GetStatus(now) == RoomStatus.Ended)
             throw new InvalidOperationException("This town hall has ended.");
         if (dbRoom.IsPrivate == isPrivate)
@@ -246,7 +246,7 @@ public class RoomsService(IServiceProvider services) : DbServiceBase<AppDbContex
 
         var dbRoom = await dbContext.GetRoom(roomId, cancellationToken).ConfigureAwait(false);
         await dbContext.RequireRoomOwner(roomId, session.Id, cancellationToken).ConfigureAwait(false);
-        var now = Clocks.SystemClock.Now;
+        var now = Clocks.SystemClock.Now.ToDbPrecision();
         var endsAt = dbRoom.EndsAt.DefaultKind(DateTimeKind.Utc).ToMoment();
         if (dbRoom.GetStatus(now) == RoomStatus.Ended) {
             // Within the grace period a positive delta resurrects the room as running,
@@ -276,7 +276,7 @@ public class RoomsService(IServiceProvider services) : DbServiceBase<AppDbContex
         if (dbRoom == null)
             return null;
 
-        var now = Clocks.SystemClock.Now;
+        var now = Clocks.SystemClock.Now.ToDbPrecision();
         var status = dbRoom.GetStatus(now);
         var endsAt = dbRoom.EndsAt.DefaultKind(DateTimeKind.Utc).ToMoment();
         Moment? pausedAt = dbRoom.PausedAt is { } p ? p.DefaultKind(DateTimeKind.Utc).ToMoment() : null;
@@ -294,7 +294,7 @@ public class RoomsService(IServiceProvider services) : DbServiceBase<AppDbContex
         var dbContext = await DbHub.CreateDbContext(cancellationToken).ConfigureAwait(false);
         await using var _1 = dbContext.ConfigureAwait(false);
 
-        var now = Clocks.SystemClock.Now;
+        var now = Clocks.SystemClock.Now.ToDbPrecision();
         var nowDt = now.ToDateTime();
         // Active = not Ended: paused halls (frozen) plus running halls whose EndsAt is still ahead
         var rooms = await dbContext.Rooms

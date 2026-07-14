@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\TownHall.Contracts\TownHall.Contracts.csproj" />
+  </ItemGroup>
+
+  <!-- Fusion packages -->
+  <ItemGroup>
+    <PackageReference Include="ActualLab.Fusion.EntityFramework" />
+    <PackageReference Include="ActualLab.Fusion.EntityFramework.Npgsql" />
+  </ItemGroup>
+
+  <!-- Other packages -->
+  <ItemGroup>
+    <!-- Non-private, so the whole graph unifies on the same EF version the Design
+         package builds this assembly against - a mismatch breaks migration discovery -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
+  </ItemGroup>
+
+</Project>

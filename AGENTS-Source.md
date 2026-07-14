@@ -35,14 +35,14 @@ until they are committed:
 
 For every exchange, append:
 
-- The user's message as `User:` ... — but clean it up first: fix
+- The user's message as `**User:**` ... — but clean it up first: fix
   grammar, remove filler words from voice-transcribed text ("uh",
   "so...", "kind of", etc.), and correct mistranscribed or imprecise
   terminology. Phrase it as you understood it; the result must be
   clear and readable.
 - A very short summary of your response (ideally one sentence) as
-  `YourModelName:` ... (e.g. `Fable5:` ...).
+  `**YourModelName:**` ... (e.g. `**Fable5:**` ...).
 
-Use plain `Name:` prefixes — never `<Name>` angle-bracket markers, which
+Use bold `**Name:**` prefixes — never `<Name>` angle-bracket markers, which
 Markdown renders as (empty) HTML tags and drops. Session-level asides use a
-`Note:` ... line the same way.
+`**Note:**` ... line the same way.

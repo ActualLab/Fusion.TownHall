@@ -61,10 +61,10 @@ services:
     entrypoint: ["docker-entrypoint.sh", "-c", "shared_buffers=256MB", "-c", "max_connections=1000"]
 
 networks:
-  # The shared edge network created by the BoardGames deployment; the edge Caddy
-  # lives here and routes townhall.actuallab.net to townhall-app.
+  # The shared edge network (created on the host; the edge Caddy from
+  # ActualLab/DeployConfigs routes townhall.actuallab.net to townhall-app).
   edge:
-    name: boardgames_default
     external: true
+    name: edge
   # The stack-private network the DB lives on; not reachable from outside.
   internal:

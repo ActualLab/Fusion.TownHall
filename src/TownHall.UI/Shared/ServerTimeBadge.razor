@@ -1,0 +1,12 @@
+@inherits ComputedStateComponent<DateTime>
+@inject ITime Time
+
+<MudAlert Severity="Severity.Success" Class="mb-8" ContentAlignment="HorizontalAlignment.Start">
+    Fusion is on: the server time is
+    <b>@(State.Value == default ? "..." : State.Value.ToString("HH:mm:ss"))</b>
+</MudAlert>
+
+@code {
+    protected override Task<DateTime> ComputeState(CancellationToken cancellationToken)
+        => Time.GetTime(cancellationToken);
+}

@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+
+  <PropertyGroup>
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <NoDefaultLaunchSettingsFile>true</NoDefaultLaunchSettingsFile>
+    <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- Required for WASM+Server projects -->
+    <StaticWebAssetProjectMode>Default</StaticWebAssetProjectMode>
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>full</TrimMode>
+    <IsTrimmable>true</IsTrimmable>
+    <RunAOTCompilation>false</RunAOTCompilation>
+    <WasmStripILAfterAOT>true</WasmStripILAfterAOT>
+  </PropertyGroup>
+
+  <!-- Extra trimming roots -->
+  <ItemGroup>
+    <TrimmerRootAssembly Include="TownHall.UI" />
+    <TrimmerRootAssembly Include="MudBlazor" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TownHall.Contracts\TownHall.Contracts.csproj" />
+  </ItemGroup>
+
+  <!-- Fusion packages -->
+  <ItemGroup>
+    <PackageReference Include="ActualLab.Fusion.Blazor" />
+  </ItemGroup>
+
+  <!-- Other packages -->
+  <ItemGroup>
+    <PackageReference Include="MudBlazor" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" PrivateAssets="all" />
+  </ItemGroup>
+
+  <!-- Source generators -->
+  <ItemGroup>
+    <PackageReference Include="ActualLab.Generators" PrivateAssets="all" />
+  </ItemGroup>
+
+</Project>

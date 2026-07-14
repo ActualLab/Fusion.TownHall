@@ -1,0 +1,39 @@
+@page "/"
+
+<PageTitle>TownHall</PageTitle>
+
+<MudText Typo="Typo.h3" GutterBottom="true">TownHall</MudText>
+<MudText Class="mb-4">
+    TownHall is a live audience Q&amp;A app ("Slido-lite"): anyone can create a town hall (a room)
+    and becomes its owner; participants post questions and upvote others' questions; the question
+    list sorts by votes, and a trending panel highlights questions gaining votes right now.
+    Owners moderate &mdash; resolve or delete questions, start/stop the session. Participants also
+    continuously signal their mood on a 5-emoji scale, visualized as a big generated SVG face
+    plus a distribution chart.
+</MudText>
+<MudText Class="mb-4">
+    The app exists to compare real-time frameworks: the same app will be implemented several times
+    (.NET + <MudLink Href="https://github.com/ActualLab/Fusion" Target="_blank">Fusion</MudLink>,
+    plain .NET, .NET + SignalR, possibly TypeScript and Elixir stacks) to measure the code delta
+    each framework produces. It's a Blazor app (WebAssembly + Server-Side Blazor) similar to the
+    TodoApp from
+    <MudLink Href="https://github.com/ActualLab/Fusion.Samples" Target="_blank">Fusion Samples</MudLink>.
+</MudText>
+<MudAlert Severity="Severity.Info" Class="mb-4" ContentAlignment="HorizontalAlignment.Start">
+    This is the Fusion-based implementation &mdash; the first one to be built; the other versions
+    will be derived from it. Everything here updates in real time &mdash; like the server clock below.
+</MudAlert>
+<ServerTimeBadge />
+<RenderModeSwitch />
+
+<MudText Typo="Typo.h5" GutterBottom="true">Related repositories</MudText>
+<MudList T="string" ReadOnly="true">
+    <MudListItem Icon="@Icons.Material.Filled.Sync">
+        <MudLink Href="https://github.com/ActualLab/Fusion" Target="_blank">ActualLab.Fusion</MudLink>
+        &mdash; the real-time state synchronization framework this sample is built to showcase
+    </MudListItem>
+    <MudListItem Icon="@Icons.Material.Filled.Apps">
+        <MudLink Href="https://github.com/ActualLab/Fusion.Samples" Target="_blank">ActualLab.Fusion.Samples</MudLink>
+        &mdash; other Fusion samples, including the TodoApp this app's structure follows
+    </MudListItem>
+</MudList>

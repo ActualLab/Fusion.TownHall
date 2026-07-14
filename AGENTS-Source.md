@@ -17,8 +17,21 @@ documentation comments"](CODING_STYLE.md#regular-comments-docstrings-xml-documen
 Every conversation with an AI agent in this repo must be logged to the
 current session file in [docs/ai-sessions/](docs/ai-sessions/). Session files are named
 `NN-description.md` (e.g. `01-init.md`); the current one is the file
-with the highest `NN`. Start a new file (next `NN`, short kebab-case
-description) when a new session or topic begins.
+with the highest `NN`.
+
+**One session file per commit.** A session file accumulates exchanges
+until they are committed:
+
+- When you start and the latest session file has no uncommitted changes
+  (per `git status`), the previous session is done — create a new file
+  with the next `NN`, initially named just `NN.md` (e.g. `03.md`).
+- Right before committing, rename it to add a short kebab-case
+  description suffix reflecting what was done (e.g. `03.md` →
+  `03-basic-app.md`).
+- If the latest session file has uncommitted changes, the commit hasn't
+  happened yet — keep appending to that file.
+- When in doubt about committing, or about appending vs. starting a new
+  session file, ask the user what to do with the session log.
 
 For every exchange, append:
 

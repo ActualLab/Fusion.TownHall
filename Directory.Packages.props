@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="latest" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- Constants -->
+  <PropertyGroup>
+    <ActualLabFusionVersion>13.0.28</ActualLabFusionVersion>
+    <AspNetCoreVersion>[10.0.1,)</AspNetCoreVersion>
+    <BlazorVersion>$(AspNetCoreVersion)</BlazorVersion>
+    <EntityFrameworkCoreVersion>[10.0.1,)</EntityFrameworkCoreVersion>
+    <MemoryPackVersion>1.21.4</MemoryPackVersion>
+    <MudBlazorVersion>9.7.0</MudBlazorVersion>
+  </PropertyGroup>
+  <!-- Fusion packages -->
+  <ItemGroup>
+    <PackageVersion Include="ActualLab.Fusion" Version="$(ActualLabFusionVersion)" />
+    <PackageVersion Include="ActualLab.Fusion.Blazor" Version="$(ActualLabFusionVersion)" />
+    <PackageVersion Include="ActualLab.Fusion.EntityFramework" Version="$(ActualLabFusionVersion)" />
+    <PackageVersion Include="ActualLab.Fusion.Server" Version="$(ActualLabFusionVersion)" />
+    <!-- Build-time only -->
+    <PackageVersion Include="ActualLab.Generators" Version="$(ActualLabFusionVersion)" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
+  </ItemGroup>
+  <!-- Other packages -->
+  <ItemGroup>
+    <PackageVersion Include="MemoryPack.Generator" Version="$(MemoryPackVersion)" />
+    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly" Version="$(BlazorVersion)" />
+    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="$(BlazorVersion)" PrivateAssets="all" />
+    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="$(BlazorVersion)" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="$(EntityFrameworkCoreVersion)" />
+    <PackageVersion Include="MudBlazor" Version="$(MudBlazorVersion)" />
+  </ItemGroup>
+</Project>

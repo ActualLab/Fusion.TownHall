@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <ServerGarbageCollection>true</ServerGarbageCollection>
+    <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TownHall.Contracts\TownHall.Contracts.csproj" />
+    <ProjectReference Include="..\TownHall.UI\TownHall.UI.csproj" />
+  </ItemGroup>
+
+  <!-- Fusion packages -->
+  <ItemGroup>
+    <PackageReference Include="ActualLab.Fusion.EntityFramework" />
+    <PackageReference Include="ActualLab.Fusion.Server" />
+  </ItemGroup>
+
+  <!-- Other packages -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+  </ItemGroup>
+
+  <!-- Source generators -->
+  <ItemGroup>
+    <PackageReference Include="ActualLab.Generators" PrivateAssets="all" />
+  </ItemGroup>
+
+</Project>

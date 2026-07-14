@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>TownHall</RootNamespace>
+  </PropertyGroup>
+
+  <!-- Fusion packages -->
+  <ItemGroup>
+    <PackageReference Include="ActualLab.Fusion" />
+  </ItemGroup>
+
+  <!-- Source generators -->
+  <ItemGroup>
+    <PackageReference Include="ActualLab.Generators" PrivateAssets="all" />
+    <PackageReference Include="MemoryPack.Generator" PrivateAssets="all" />
+  </ItemGroup>
+
+</Project>

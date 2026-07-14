@@ -12,17 +12,18 @@ their mood on a 5-emoji scale, visualized as a big generated face plus a
 distribution chart.
 
 The app exists to compare real-time frameworks. The same app will be
-implemented several times (plain .NET, .NET + Fusion, .NET + SignalR,
-possibly TypeScript and Elixir stacks) to measure the code delta each
-framework produces. **This task is Phase 1 only: the plain, non-real-time
-baseline.** Nothing in this phase uses Fusion, SignalR, WebSockets, SSE, or
-polling loops hidden in the server — freshness comes exclusively from the
-client re-fetching state (manual or auto-refresh).
+implemented several times (.NET + [Fusion](https://github.com/ActualLab/Fusion),
+plain .NET, .NET + SignalR, possibly TypeScript and Elixir stacks) to
+measure the code delta each framework produces. **This task is Phase 1:
+the Fusion-based implementation — it is built first**, and the other
+versions will be derived from it later (strategy TBD — do not prepare for
+them). Freshness comes from Fusion itself: reads are compute services,
+writes invalidate them, and every client sees changes in real time — no
+manual refresh, no polling loops.
 
-Because this codebase is a comparison baseline, code size and readability are
-success criteria. Prefer the smallest clear implementation. No speculative
-abstractions, no layers that exist "for later." Later phases are separate
-efforts (likely separate branches; strategy TBD — do not prepare for it).
+Because this codebase is a comparison reference, code size and readability
+are success criteria. Prefer the smallest clear implementation. No
+speculative abstractions, no layers that exist "for later."
 
 ## Core concepts
 
@@ -30,8 +31,8 @@ efforts (likely separate branches; strategy TBD — do not prepare for it).
   session corresponds to one browser window. The client generates a GUID on
   first load, keeps it in `sessionStorage` (NOT `localStorage`, NOT a cookie —
   those are shared across tabs, and multiple tabs must behave as multiple
-  users for demo purposes), and sends it on every API call in an
-  `X-Session` header.
+  users for demo purposes), and uses it as its Fusion `Session` id
+  (via `ISessionResolver`), so every RPC call carries it implicitly.
 - **Display name.** Each session has a display name used as the author
   snapshot on questions it posts. On first load the server assigns a
   generated name (scheme below). The user can change it at any time via an
@@ -68,7 +69,8 @@ No uniqueness guarantee needed.
 - `ClosesAt` (creation time + chosen duration) is a hard deadline: once
   `now >= ClosesAt` the room is **Ended** regardless of the toggle, terminally.
   Status is DERIVED at read time from the stored toggle + `ClosesAt`; there
-  are no background timers in Phase 1.
+  are no background timers — the computed status invalidates itself when
+  `ClosesAt` passes, so the change still propagates instantly.
 - Gating:
   - Posting questions, voting, and setting mood require **Live**.
   - Resolving/deleting questions and Start/Stop work while Stopped or Live
@@ -126,20 +128,21 @@ Generate the SVG in code (a small Razor component / C# helper), driven by
 
 ## API contract
 
-The contract below is canonical for all phases; later phases change
-attributes and the `Session` type, not shapes. For Phase 1:
+The contract below is canonical for all phases; other implementations change
+attributes and the `Session` type, not shapes. For the Fusion version:
 
-- `Session` is a plain record: `public sealed record Session(string Id);`
-- Interfaces live in a shared project referenced by both server and client.
-- The server implements them as ordinary singleton services; ASP.NET Core
-  minimal-API endpoints (or controllers) map 1:1 to interface methods.
-  Reads → GET with route/query params; commands → POST with the command
-  record as JSON body. The `Session` value never appears in routes or
-  bodies — endpoints construct it from the `X-Session` header and pass it
-  as the first argument (for commands, inject it into the command record).
-- The Blazor client consumes the same interfaces via a thin HTTP client
-  implementation (one class per interface is fine; a `DelegatingHandler`
-  attaches `X-Session`).
+- `Session` is ActualLab.Fusion's `Session`; the client assigns it per
+  browser tab (the `sessionStorage` GUID above) via `ISessionResolver`.
+- Interfaces live in `TownHall.Contracts`, referenced by both server and
+  client.
+- The server implements them as Fusion compute services: interfaces extend
+  `IComputeService`, reads are `[ComputeMethod]`s, commands are
+  `[CommandHandler]`s taking fully serializable command records (per
+  CODING_STYLE conventions). Fusion RPC over WebSocket is the transport —
+  no hand-written HTTP endpoints or HTTP clients.
+- The Blazor client consumes the same interfaces via `fusion.AddClient<T>()`.
+- The shapes below are shown without Fusion & serialization attributes;
+  the implementation adds them.
 - The one exception to "session never in a URL": the owner-claim page URL
   contains the owner TOKEN (not the session). That page exists precisely to
   convert the token into session state and then hide it.
@@ -147,7 +150,7 @@ attributes and the `Session` type, not shapes. For Phase 1:
 ```csharp
 namespace TownHall;
 
-public sealed record Session(string Id);
+// Session = ActualLab.Fusion.Session
 
 // ============================================================ Model
 
@@ -164,7 +167,7 @@ public sealed record Room(
     DateTimeOffset CreatedAt,
     DateTimeOffset ClosesAt,
     RoomStatus Status   // DERIVED at read time (stored toggle + ClosesAt);
-                        // never stored, no background timers in Phase 1
+                        // never stored; auto-invalidated at ClosesAt
 );
 // The owner token is intentionally NOT part of Room — it is only ever
 // returned by IRooms.GetOwnerToken, and only to owners.
@@ -323,8 +326,7 @@ public interface IPresence
 
     Task OnWatch(Presence_Watch command, CancellationToken ct = default);
     // Heartbeat. Client sends it every 15 s while a room page is open,
-    // and once immediately on opening the page — independent of refresh
-    // mode and room status.
+    // and once immediately on opening the page — regardless of room status.
 }
 
 public sealed record Presence_Watch(Session Session, string RoomId);
@@ -346,19 +348,20 @@ public sealed record Mood_Set(Session Session, string RoomId, int Level);
 ```
 
 Command failures (validation, not-owner, wrong lifecycle state, missing
-entities) are thrown as exceptions server-side and surface to the HTTP layer
-as 400/403/404 with a plain-text or problem-details message the client can
-show in a toast.
+entities) are thrown as exceptions server-side; Fusion RPC re-throws them
+on the client, where they surface as a toast/snackbar message.
 
 ## Storage
 
-In-memory only. A single store class (or one per service — keep it simple)
-holding dictionaries behind a `lock` (or `ConcurrentDictionary` where it's
-cleaner). All ordering/aggregation is computed on read by scanning — that is
-deliberate: reads are "deliberately expensive" so later phases have
-something to optimize with caching/invalidation. Do not add caches, do not
-add indexes, do not add a database. Data is lost on server restart; that's
-fine. Seed nothing (empty lobby on first run is correct); optionally add a
+Sqlite via EF Core — the setup is already in place: `AppDbContext`
+(`DbContextBase`), Fusion's EF operations framework (operation/event logs +
+file-system log watcher), `EnsureCreated` on start, no migrations. Add
+simple tables for domain records (rooms, owners, questions, votes,
+resolutions, moods); ordering/aggregation is computed on read — Fusion's
+computed caching makes repeated reads cheap, and writes invalidate exactly
+the affected compute methods. Purely ephemeral state (presence heartbeats)
+may live in an in-memory singleton instead of the DB — keep it simple.
+Seed nothing (empty lobby on first run is correct); optionally add a
 `--demo-seed` flag that creates one Live room with a handful of questions,
 votes, and moods for screenshots.
 
@@ -367,24 +370,21 @@ vote (trending depends on it); owner session ids per room; per-room stored
 lifecycle toggle; mood level per (session, room); last heartbeat per
 (session, room).
 
-## UI (Blazor WebAssembly)
+## UI (Blazor)
 
-Stack: ASP.NET Core host + Blazor WASM client, latest stable .NET SDK.
-Styling: minimal, clean, hand-written CSS or a single tiny CSS framework
-(e.g. Pico.css) — no component libraries, no Tailwind build steps. It should
-look tidy in a side-by-side multi-window demo, nothing more.
+Stack: ASP.NET Core host + Blazor with WASM and Server render modes
+(Fusion's render-mode infrastructure; Auto by default), .NET 10, MudBlazor
+for components; project structure follows the TodoApp sample from
+Fusion Samples. It should look tidy in a side-by-side multi-window demo,
+nothing more.
 
 ### Header (all pages)
 
 - App name "TownHall" (links home).
 - Session name: shown as text, click to edit inline (input + save/cancel),
   backed by `IParticipants`.
-- **Refresh controls** — the signature Phase 1 element:
-  - `Refresh` button: re-fetches every read the current page depends on.
-  - `Auto` toggle: when on, the page performs that same refresh every 3 s
-    (client-side timer). Off by default. State is per-window, kept in memory
-    (resetting on reload is fine).
-  - A subtle "last refreshed Ns ago" label.
+- No refresh controls: Fusion keeps every view current in real time —
+  that's the signature element of this version.
 
 ### Home page `/`
 
@@ -445,37 +445,33 @@ look tidy in a side-by-side multi-window demo, nothing more.
   showing "+N in last 5 min" and linking/scrolling to the question.
 - Unknown room id → "Not found" message with a link home.
 
-### Refresh semantics (exact)
+### Update semantics (exact)
 
-- "Refresh" = re-fetch all reads the page renders from, then re-render.
-  Fetches within one refresh may run concurrently; a trivially inconsistent
-  snapshot (e.g. count arrived before list) is acceptable and will simply be
-  fixed by the next refresh.
-- After any successful command issued by this window (post, vote, resolve,
-  delete, rename, create, start/stop, mood), trigger an immediate refresh of
-  the current page.
-- Auto mode: same refresh, fired by a 3 s client timer; suspend while a
-  refresh is in flight (no overlap).
-- Presence heartbeat is NOT part of refresh: it runs on its own 15 s timer
-  whenever a room page is open, plus once on page open, in both modes.
+- Every view renders from Fusion computed state (`ComputedStateComponent`);
+  when the server invalidates a dependency, the state recomputes and the
+  UI re-renders automatically (default update delay ~0.25 s).
+- Commands go through the same service interfaces; no post-command refresh
+  logic is needed — invalidation covers this window and everyone else's.
+- Presence heartbeat runs on its own 15 s timer whenever a room page is
+  open, plus once on page open.
 
 ## Project layout
 
 ```
-TownHall.sln
+TownHall.slnx
 src/
-  TownHall.Contracts/   # Session, model records, command records, interfaces
-  TownHall.Server/      # ASP.NET Core host: endpoints, in-memory store,
-                        # service implementations, name generator; serves the WASM app
-  TownHall.Client/      # Blazor WASM: pages, header, SVG face component,
-                        # HTTP client implementations
+  TownHall.Contracts/   # model records, command records, service interfaces
+  TownHall.Host/        # ASP.NET Core host: Fusion server + DB + service
+                        # implementations, name generator; serves the UI
+  TownHall.UI/          # Blazor UI (WASM + Server render modes): pages,
+                        # header, SVG face component
 ```
 
-One `dotnet run` (on TownHall.Server) starts everything. README with: what
+One `dotnet run` (on TownHall.Host) starts everything. README with: what
 this is (two paragraphs, including the multi-phase comparison purpose), how
 to run, and a "try it" script: open two browser windows, create a room in
-one, start it, join from the other, post/vote/set moods, watch the windows
-diverge until refresh.
+one, start it, join from the other, post/vote/set moods, watch every window
+update in real time.
 
 ## Non-goals (Phase 1)
 
@@ -483,13 +479,15 @@ diverge until refresh.
   login; no revocation, no owner lists in the UI.
 - No moderation beyond resolve/delete (no bans, no rate limiting, no
   profanity filtering).
-- No persistence, no EF/SQLite, no migrations.
-- No real-time transport of any kind; no server-side background timers
-  (room Ended state, presence expiry, and mood-aggregate membership are all
-  evaluated lazily at read time).
+- No migrations — `EnsureCreated` is enough; deleting the Sqlite file on
+  schema changes is fine.
+- No transports beside Fusion RPC (no SignalR, no custom WebSockets/SSE);
+  no server-side background timers (room Ended state, presence expiry, and
+  mood-aggregate membership are evaluated lazily at read time, with
+  auto-invalidation where a deadline is known).
 - No pagination (rooms and questions are demo-scale; unbounded lists fine).
-- No localization, no dark mode, no mobile-first polish (must merely not
-  break on a phone).
+- No localization, no mobile-first polish (must merely not break on a
+  phone).
 - No unit test suite. One smoke test project is acceptable if it stays
   under ~100 lines; otherwise skip.
 - SVG face stays at the crude v1 spec — no eyebrows, animation, or easing;
@@ -503,18 +501,17 @@ diverge until refresh.
    links; copies the participant link; enters the room. The room is Stopped;
    composer, vote, and mood controls are disabled. W1 sees the Owner bar.
 3. W2 opens the participant link → sees the Stopped banner, no Owner bar.
-   Audience shows 2 within ~15 s in both windows (after their refreshes).
-4. W1 presses Start → room goes Live. W2 sees it after Refresh (or within
-   3 s with Auto on).
-5. W2 posts a question → visible in W2 immediately (post-command refresh);
-   NOT visible in W1 until W1 refreshes. W1 enables Auto → subsequent
-   changes appear within 3 s.
+   Audience shows 2 within ~15 s in both windows.
+4. W1 presses Start → room goes Live. W2 sees it within a second — no
+   refresh, that's Fusion at work.
+5. W2 posts a question → it appears in both windows in real time.
 6. Voting: W1 votes the question up (button fills, count +1); clicking again
    clears it. Top tab ordering follows vote counts; Trending shows
    recently-voted questions and drops them ~5 min after voting stops.
 7. Moods: W1 clicks 😄, W2 clicks 🙁 → face and distribution reflect
-   avg=3 (two bars, straight-ish mouth) after refresh. W2 closes the tab →
-   within ~30 s + refresh, VoterCount drops to 1 and the face turns happy.
+   avg=3 (two bars, straight-ish mouth) in both windows immediately.
+   W2 closes the tab → within ~30 s, VoterCount drops to 1 and the face
+   turns happy.
 8. Owner moderation: W1 resolves W2's question with note "answered live" →
    it moves to the Resolved tab with the note; votes frozen. W1 deletes
    another question → it disappears everywhere; its index is never reused.
@@ -523,11 +520,11 @@ diverge until refresh.
 9. Owner delegation: open W3, paste the owner URL → it redirects to the
    plain room URL (token gone from the address bar, no Back-button trace),
    and W3 now sees the Owner bar.
-10. W1 presses Stop → controls disable everywhere on next refresh; W1
+10. W1 presses Stop → controls disable everywhere immediately; W1
     resolves one more question while Stopped (allowed), presses Start again.
 11. Create a room with a short duration (temporarily allow 5 min via the
-    clamp, or edit the select for testing) → at deadline, the room shows as
-    Ended on next refresh, all write controls disabled including owner
+    clamp, or edit the select for testing) → at the deadline, the room shows
+    as Ended everywhere, all write controls disabled including owner
     Start/Stop, and it disappears from the home page list.
 12. Rename in W1 header → W1's subsequent posts carry the new name; earlier
     posts keep the old snapshot.

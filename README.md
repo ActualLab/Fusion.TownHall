@@ -9,14 +9,16 @@ signal their mood on a 5-emoji scale, visualized as a big generated SVG face
 plus a distribution chart.
 
 The app exists to compare real-time frameworks: the same app will be
-implemented several times (plain .NET, .NET + [Fusion](https://github.com/ActualLab/Fusion),
-.NET + SignalR, possibly TypeScript and Elixir stacks) to measure the code
-delta each framework produces. It's a Blazor app (WebAssembly + Server-Side
-Blazor) similar to the TodoApp from [Fusion Samples](https://github.com/ActualLab/Fusion.Samples).
+implemented several times (.NET + [Fusion](https://github.com/ActualLab/Fusion),
+plain .NET, .NET + SignalR, possibly TypeScript and Elixir stacks) to measure
+the code delta each framework produces. **The Fusion-based version is
+implemented first**; the other versions will be derived from it later.
+It's a Blazor app (WebAssembly + Server-Side Blazor) similar to the TodoApp
+from [Fusion Samples](https://github.com/ActualLab/Fusion.Samples).
 
 See [docs/TownHall-Phase1.md](docs/TownHall-Phase1.md) for the Phase 1 spec —
-the plain, non-real-time baseline, where freshness comes exclusively from the
-client re-fetching state (manual or auto-refresh).
+the Fusion-based implementation, where every view updates in real time via
+Fusion's compute services and invalidation.
 
 ## Related repositories
 

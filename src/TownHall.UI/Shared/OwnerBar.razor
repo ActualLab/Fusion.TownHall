@@ -6,12 +6,6 @@
 <MudExpansionPanels Class="mb-4" Elevation="2">
     <MudExpansionPanel Text="Owner tools" Dense="true">
         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap">
-            <MudButton Variant="Variant.Filled" Size="Size.Small"
-                       Color="@(Room.Status == RoomStatus.Live ? Color.Warning : Color.Success)"
-                       Disabled="@IsEnded"
-                       OnClick="ToggleLive">
-                @(Room.Status == RoomStatus.Live ? "Stop" : "Start")
-            </MudButton>
             <MudCheckBox Value="@Room.IsPrivate" T="bool" ValueChanged="SetIsPrivate" Dense="true"
                          Disabled="@IsEnded" Label="Private" />
             <MudSpacer />
@@ -19,17 +13,6 @@
                        Disabled="@(State.ValueOrDefault == null)"
                        OnClick="CopyOwnerLink">
                 Copy owner link
-            </MudButton>
-        </MudStack>
-        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap" Class="mt-2">
-            <MudText Typo="Typo.body2" Class="mud-text-secondary">@ClosingTimeHint</MudText>
-            <MudButton Variant="Variant.Outlined" Size="Size.Small" Disabled="@IsEnded"
-                       OnClick="@(() => AdjustDuration(-5))">
-                −5 min
-            </MudButton>
-            <MudButton Variant="Variant.Outlined" Size="Size.Small"
-                       OnClick="@(() => AdjustDuration(5))">
-                +5 min
             </MudButton>
         </MudStack>
         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mt-2">
@@ -51,10 +34,6 @@
 
     private bool IsEnded => Room.Status == RoomStatus.Ended;
 
-    private string ClosingTimeHint => IsEnded
-        ? "Ended — +5 min revives it for 5 minutes from now:"
-        : $"Closing time ({TimeText.Left(Room.ClosesAt)}):";
-
     protected override void OnInitialized()
     {
         // The title field and panel expansion are local state changed via events
@@ -68,14 +47,8 @@
         return await Rooms.GetOwnerToken(session, Room.Id, cancellationToken);
     }
 
-    private Task ToggleLive()
-        => UICommander.Run(new Rooms_SetLive(Session, Room.Id, Room.Status != RoomStatus.Live));
-
     private Task SetIsPrivate(bool isPrivate)
         => UICommander.Run(new Rooms_SetIsPrivate(Session, Room.Id, isPrivate));
-
-    private Task AdjustDuration(int minutes)
-        => UICommander.Run(new Rooms_AdjustDuration(Session, Room.Id, TimeSpan.FromMinutes(minutes)));
 
     private Task Rename()
         => UICommander.Run(new Rooms_SetTitle(Session, Room.Id, _title));

@@ -1,0 +1,35 @@
+# Production stack for hosting TownHall as a website on the shared VM:
+#   townhall-app -> townhall.actuallab.net
+#
+# TLS + routing are handled by the shared edge Caddy (from the BoardGames
+# deployment), which owns ports 80/443 on this host. This container publishes
+# no ports; it joins that Caddy's network ("boardgames_default") as an external
+# network and is reached by its container name. TownHall uses Sqlite, so there's
+# no database service here.
+#
+# Usage on the host:
+#   cd deploy && docker compose -f docker-compose.prod.yml up -d --build
+name: townhall
+
+services:
+  townhall-app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: web_townhall
+    container_name: townhall-app
+    restart: unless-stopped
+    expose:
+      - "8080"
+    environment:
+      ASPNETCORE_URLS: "http://+:8080"
+      ASPNETCORE_ENVIRONMENT: "Production"
+    networks:
+      - edge
+
+networks:
+  # The shared edge network created by the BoardGames deployment; the edge Caddy
+  # lives here and routes townhall.actuallab.net to the container above.
+  edge:
+    name: boardgames_default
+    external: true

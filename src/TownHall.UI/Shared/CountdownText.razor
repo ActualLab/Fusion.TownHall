@@ -9,7 +9,7 @@
 
     var isClosingSoon = left < TimeSpan.FromMinutes(5);
 }
-<MudText Typo="Typo.h5"
+<MudText Typo="@Typo"
          Style="@(isClosingSoon ? "color: var(--mud-palette-error); font-weight: 700;" : "")">
     @TimeText.Countdown(left) @(left.Ticks < 0 ? "overtime" : "left")
 </MudText>
@@ -20,6 +20,7 @@
     private System.Threading.Timer? _timer;
 
     [Parameter] public Moment ClosesAt { get; set; }
+    [Parameter] public Typo Typo { get; set; } = Typo.h5;
 
     protected override void OnInitialized()
         // Pure client-side ticking over the already-known ClosesAt

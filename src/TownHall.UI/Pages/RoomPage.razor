@@ -3,21 +3,22 @@
 @inject IRooms Rooms
 @inject IRoomStats RoomStats
 
-<PageTitle>TownHall</PageTitle>
-
 @{
     var m = State.ValueOrDefault;
 }
 @if (m == null) {
+    <PageTitle>TownHall</PageTitle>
     <MudProgressCircular Indeterminate="true" Size="Size.Small" />
     return;
 }
 @if (m.Room is not { } room) {
+    <PageTitle>TownHall</PageTitle>
     <MudAlert Severity="Severity.Warning" Class="mb-4">This town hall doesn't exist.</MudAlert>
     <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/">Go home</MudButton>
     return;
 }
 
+<PageTitle>@BuildPageTitle(room, m.Stats)</PageTitle>
 <PresenceBeacon RoomId="@RoomId" />
 
 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap" Class="mb-1">
@@ -26,13 +27,31 @@
              Color="@(room.Status switch { RoomStatus.Live => Color.Success, RoomStatus.Ended => Color.Error, _ => Color.Default })">
         @room.Status
     </MudChip>
+</MudStack>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap" Class="mb-3">
     @if (room.Status != RoomStatus.Stopped) {
-        <CountdownText ClosesAt="@room.ClosesAt" />
+        <CountdownText ClosesAt="@room.ClosesAt" Typo="Typo.body1" />
+    }
+    @if (m.IsOwner) {
+        <MudButton Variant="Variant.Outlined" Size="Size.Small" Disabled="@(room.Status == RoomStatus.Ended)"
+                   OnClick="@(() => AdjustDuration(-5))">
+            −5 min
+        </MudButton>
+        <MudButton Variant="Variant.Outlined" Size="Size.Small"
+                   OnClick="@(() => AdjustDuration(5))">
+            +5 min
+        </MudButton>
+        <MudButton Variant="Variant.Filled" Size="Size.Small"
+                   Color="@(room.Status == RoomStatus.Live ? Color.Warning : Color.Success)"
+                   Disabled="@(room.Status == RoomStatus.Ended)"
+                   OnClick="ToggleLive">
+            @(room.Status == RoomStatus.Live ? "Pause" : "Resume")
+        </MudButton>
     }
     <MudSpacer />
     <MudText Typo="Typo.body2" Class="mud-text-secondary">
-        @m.Stats.AudienceCount here · @m.Stats.OpenQuestionCount open ·
-        @m.Stats.ResolvedQuestionCount resolved · @m.Stats.TotalVoteCount votes
+        @m.Stats.AudienceCount @(m.Stats.AudienceCount == 1 ? "participant" : "participants")
     </MudText>
 </MudStack>
 
@@ -50,12 +69,12 @@ else if (room.Status == RoomStatus.Ended) {
 <MudGrid>
     <MudItem xs="12" md="8">
         <QuestionComposer RoomId="@RoomId" IsLive="@(room.Status == RoomStatus.Live)" />
-        <MudTabs Elevation="1" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pt-3">
-            <MudTabPanel Text="Top">
+        <MudTabs Elevation="1" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-3">
+            <MudTabPanel Text="@($"Top ({m.Stats.OpenQuestionCount})")">
                 <QuestionList RoomId="@RoomId" Tab="QuestionTab.Top" IsOwner="@m.IsOwner"
                               IsLive="@(room.Status == RoomStatus.Live)" />
             </MudTabPanel>
-            <MudTabPanel Text="Recent">
+            <MudTabPanel Text="@($"Recent ({m.Stats.OpenQuestionCount})")">
                 <QuestionList RoomId="@RoomId" Tab="QuestionTab.Recent" IsOwner="@m.IsOwner"
                               IsLive="@(room.Status == RoomStatus.Live)" />
             </MudTabPanel>
@@ -85,6 +104,21 @@ else if (room.Status == RoomStatus.Ended) {
         var stats = await RoomStats.GetStats(session, RoomId, cancellationToken);
         return new Model(room, isOwner, stats);
     }
+
+    private static string BuildPageTitle(Room room, RoomStats stats)
+    {
+        var questions = stats.OpenQuestionCount + stats.ResolvedQuestionCount;
+        var questionWord = questions == 1 ? "question" : "questions";
+        var participantWord = stats.AudienceCount == 1 ? "participant" : "participants";
+        return $"TownHall: {room.Title}, {stats.OpenQuestionCount} open + {stats.ResolvedQuestionCount} resolved "
+            + $"{questionWord}, {stats.AudienceCount} {participantWord}";
+    }
+
+    private Task AdjustDuration(int minutes)
+        => UICommander.Run(new Rooms_AdjustDuration(Session, RoomId, TimeSpan.FromMinutes(minutes)));
+
+    private Task ToggleLive()
+        => UICommander.Run(new Rooms_SetLive(Session, RoomId, State.Value.Room!.Status != RoomStatus.Live));
 
     // Nested types
 

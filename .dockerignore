@@ -1,0 +1,10 @@
+# Keep the build context small and avoid copying host build outputs into the image.
+**/artifacts/
+**/bin/
+**/obj/
+**/node_modules/
+**/.vs/
+**/.vscode/
+**/.idea/
+**/.git/
+tmp/

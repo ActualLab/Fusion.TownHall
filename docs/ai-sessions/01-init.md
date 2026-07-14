@@ -1,6 +1,6 @@
 # Session 01: Init
 
-**User:** Create `docs/ai/01-init.md` in this repo. Log every question/response I make while talking with you to the current session file in that folder (file format is `NN-description.md`; currently it's `01-init.md`). Start my phrases with "<User> ..." and add a very short summary of your response (ideally one sentence) as "<Fable5> ...". Also, fix grammar in my phrases — especially transcribed ones: remove filler words ("uh", "so...", "kind of", etc.), correct words that don't match the terminology, and phrase them as you understood them so the end result is clear and readable.
+**User:** Create `docs/ai/01-init.md` in this repo. Log every question/response I make while talking with you to the current session file in that folder (file format is `NN-description.md`; currently it's `01-init.md`). Start my phrases with "**User:** ..." and add a very short summary of your response (ideally one sentence) as "**Fable5:** ...". Also, fix grammar in my phrases — especially transcribed ones: remove filler words ("uh", "so...", "kind of", etc.), correct words that don't match the terminology, and phrase them as you understood them so the end result is clear and readable.
 
 **Fable5:** Created `docs/ai/01-init.md` and will log every exchange here in the agreed format, with cleaned-up phrasing of the user's messages.
 

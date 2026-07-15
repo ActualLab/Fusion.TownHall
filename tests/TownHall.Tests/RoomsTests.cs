@@ -11,7 +11,7 @@ public abstract class RoomsTests(TestAppHost host) : TestBase(host)
         Assert.Equal("Board Q&A", room.Title);
         Assert.Equal(TimeSpan.FromMinutes(5), room.EndsAt - room.CreatedAt);
         Assert.Equal(room, await Rooms.Get(session, room.Id));
-        Assert.Contains(room.Id, await Rooms.ListActive(session));
+        Assert.Contains(room.Id, await Rooms.ListRooms(session, 1000));
     }
 
     [Fact]
@@ -46,11 +46,11 @@ public abstract class RoomsTests(TestAppHost host) : TestBase(host)
         var other = Session.New();
         var room = await Call(new Rooms_Create(owner, "Private", TimeSpan.FromHours(1), IsPrivate: true));
         Assert.True(room.IsPrivate);
-        Assert.DoesNotContain(room.Id, await Rooms.ListActive(owner));
+        Assert.DoesNotContain(room.Id, await Rooms.ListRooms(owner, 1000));
         await Assert.ThrowsAsync<UnauthorizedAccessException>(
             () => Call(new Rooms_SetIsPrivate(other, room.Id, false)));
         await Call(new Rooms_SetIsPrivate(owner, room.Id, false));
-        var ids = await ReadWhen(() => Rooms.ListActive(owner), x => x.Contains(room.Id));
+        var ids = await ReadWhen(() => Rooms.ListRooms(owner, 1000), x => x.Contains(room.Id));
         Assert.Contains(room.Id, ids);
         var updated = await ReadWhen(() => Rooms.Get(owner, room.Id), r => r?.IsPrivate == false);
         Assert.False(updated!.IsPrivate);

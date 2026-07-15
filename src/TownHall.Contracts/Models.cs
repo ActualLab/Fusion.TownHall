@@ -24,7 +24,7 @@ public sealed record Room(
     Moment? PausedAt,
     // Derived at read time; auto-invalidated at EndsAt while running
     RoomStatus Status,
-    // Private rooms are reachable by link, but hidden from IRooms.ListActive
+    // Private rooms are reachable by link, but hidden from IRooms.ListRooms
     bool IsPrivate
 );
 

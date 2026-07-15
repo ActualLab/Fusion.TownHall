@@ -7,9 +7,10 @@ public interface IRooms : IComputeService
     [ComputeMethod]
     Task<Room?> Get(Session session, string roomId, CancellationToken cancellationToken = default);
 
-    // Paused + Live rooms (i.e. not Ended), newest first
+    // Public rooms that are active (not Ended) or ended within the last week, newest first, capped at
+    // `limit`. Returns just the ordered ids - each list row reads its own RoomStats + mood for live stats.
     [ComputeMethod]
-    Task<ImmutableArray<string>> ListActive(Session session, CancellationToken cancellationToken = default);
+    Task<ImmutableArray<string>> ListRooms(Session session, int limit, CancellationToken cancellationToken = default);
 
     [ComputeMethod]
     Task<bool> IsOwner(Session session, string roomId, CancellationToken cancellationToken = default);

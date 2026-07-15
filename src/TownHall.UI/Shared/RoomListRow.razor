@@ -2,29 +2,35 @@
 @inherits ComputedStateComponent<RoomListRow.Model>
 @inject IRooms Rooms
 @inject IRoomStats RoomStats
+@inject IMood Mood
 
 @{
     var m = State.ValueOrDefault;
     if (m?.Room is not { } room)
         return;
+    var questionCount = m.Stats.OpenQuestionCount + m.Stats.ResolvedQuestionCount;
 }
 
 <MudPaper Class="pa-3 mb-2" Elevation="1">
     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap">
         <MudLink Href="@($"/room/{room.Id}")" Typo="Typo.subtitle1">@room.Title</MudLink>
         <MudChip T="string" Size="Size.Small"
-                 Color="@(room.Status == RoomStatus.Live ? Color.Success : Color.Default)">
+                 Color="@(room.Status switch { RoomStatus.Live => Color.Success, RoomStatus.Ended => Color.Error, _ => Color.Default })">
             @room.Status
         </MudChip>
         <MudSpacer />
-        <MudText Typo="Typo.body2" Class="mud-text-secondary">@TimeText.Left(room.EndsAt - (room.PausedAt ?? Moment.Now))</MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">@TimeLabel(room)</MudText>
         <MudText Typo="Typo.body2" Class="mud-text-secondary">
-            @m.Stats.OpenQuestionCount open · @m.Stats.AudienceCount here
+            @questionCount @(questionCount == 1 ? "question" : "questions")
+            · @m.Stats.AudienceCount here
+            · mood @MoodEmoji(m.AverageMood)
         </MudText>
     </MudStack>
 </MudPaper>
 
 @code {
+    private static readonly string[] Emojis = ["😞", "🙁", "😐", "🙂", "😄"];
+
     [Parameter, EditorRequired] public string RoomId { get; set; } = "";
 
     protected override async Task<Model> ComputeState(CancellationToken cancellationToken)
@@ -32,13 +38,20 @@
         var session = await CircuitHub.SessionResolver.GetSession(cancellationToken);
         var room = await Rooms.Get(session, RoomId, cancellationToken);
         if (room == null)
-            return new Model(null, new RoomStats(0, 0, 0, 0));
+            return new Model(null, new RoomStats(0, 0, 0, 0), null);
 
         var stats = await RoomStats.GetStats(session, RoomId, cancellationToken);
-        return new Model(room, stats);
+        var mood = await Mood.GetSummary(session, RoomId, cancellationToken);
+        return new Model(room, stats, mood.Average);
     }
+
+    private static string TimeLabel(Room room)
+        => room.Status == RoomStatus.Ended ? "ended" : TimeText.Left(room.EndsAt - (room.PausedAt ?? Moment.Now));
+
+    private static string MoodEmoji(double? average)
+        => average is { } a ? Emojis[Math.Clamp((int)Math.Round(a), 1, 5) - 1] : "—";
 
     // Nested types
 
-    public sealed record Model(Room? Room, RoomStats Stats);
+    public sealed record Model(Room? Room, RoomStats Stats, double? AverageMood);
 }

@@ -32,6 +32,9 @@ cfg.Sources.Insert(0, new MemoryConfigurationSource() {
     }!
 });
 
+// OpenTelemetry (logs/traces/metrics) streams to the Aspire dashboard when run under the AppHost
+builder.AddServiceDefaults();
+
 // Configure services
 var services = builder.Services;
 ConfigureLogging();
@@ -98,6 +101,7 @@ void ConfigureServices()
                 npgsql.EnableRetryOnFailure(0);
             });
             db.UseNpgsqlHintFormatter();
+            db.AddInterceptors(new DbMetrics()); // Query + fetched-row counters (TownHall.Db meter)
             if (env.IsDevelopment())
                 db.EnableSensitiveDataLogging();
         });

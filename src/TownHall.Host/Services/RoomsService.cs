@@ -10,6 +10,9 @@ public class RoomsService(IServiceProvider services) : DbServiceBase<AppDbContex
 
     private static readonly TimeSpan MinDuration = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan MaxDuration = TimeSpan.FromHours(24);
+    // Ended halls stay in the list this long; the list is capped at MaxListedRooms (paginated client-side)
+    private static readonly TimeSpan RecentWindow = TimeSpan.FromDays(7);
+    private const int MaxListedRooms = 10_000;
     private const string IdAlphabet = "0123456789abcdefghijklmnopqrstuvwxyz";
 
     private IDbEntityResolver<string, DbRoom> RoomResolver { get; } = services.DbEntityResolver<string, DbRoom>();
@@ -17,8 +20,11 @@ public class RoomsService(IServiceProvider services) : DbServiceBase<AppDbContex
     public virtual async Task<Room?> Get(Session session, string roomId, CancellationToken cancellationToken = default)
         => await GetRoom(roomId, cancellationToken).ConfigureAwait(false);
 
-    public virtual async Task<ImmutableArray<string>> ListActive(Session session, CancellationToken cancellationToken = default)
-        => await ListActiveRoomIds(cancellationToken).ConfigureAwait(false);
+    public virtual async Task<ImmutableArray<string>> ListRooms(Session session, int limit, CancellationToken cancellationToken = default)
+    {
+        var ids = await ListRoomIds(cancellationToken).ConfigureAwait(false);
+        return limit < ids.Length ? ids[..limit] : ids;
+    }
 
     public virtual async Task<bool> IsOwner(Session session, string roomId, CancellationToken cancellationToken = default)
     {
@@ -47,7 +53,7 @@ public class RoomsService(IServiceProvider services) : DbServiceBase<AppDbContex
         if (Invalidation.IsActive) {
             var roomId = context.Operation.Items.Get<string>("RoomId")!;
             _ = GetRoom(roomId, default);
-            _ = ListActiveRoomIds(default);
+            _ = ListRoomIds(default);
             _ = IsOwner(session, roomId, default);
             return null!;
         }
@@ -153,7 +159,7 @@ public class RoomsService(IServiceProvider services) : DbServiceBase<AppDbContex
         var (session, roomId, isPrivate) = command;
         if (Invalidation.IsActive) {
             _ = GetRoom(roomId, default);
-            _ = ListActiveRoomIds(default);
+            _ = ListRoomIds(default);
             return;
         }
 
@@ -237,7 +243,7 @@ public class RoomsService(IServiceProvider services) : DbServiceBase<AppDbContex
         var (session, roomId, delta) = command;
         if (Invalidation.IsActive) {
             _ = GetRoom(roomId, default);
-            _ = ListActiveRoomIds(default);
+            _ = ListRoomIds(default);
             return;
         }
 
@@ -289,24 +295,27 @@ public class RoomsService(IServiceProvider services) : DbServiceBase<AppDbContex
     }
 
     [ComputeMethod]
-    protected virtual async Task<ImmutableArray<string>> ListActiveRoomIds(CancellationToken cancellationToken = default)
+    protected virtual async Task<ImmutableArray<string>> ListRoomIds(CancellationToken cancellationToken = default)
     {
         var dbContext = await DbHub.CreateDbContext(cancellationToken).ConfigureAwait(false);
         await using var _1 = dbContext.ConfigureAwait(false);
 
         var now = Clocks.SystemClock.Now.ToDbPrecision();
-        var nowDt = now.ToDateTime();
-        // Active = not Ended: paused halls (frozen) plus running halls whose EndsAt is still ahead
+        var recentCutoffDt = (now - RecentWindow).ToDateTime();
+        // Active (paused halls or running halls still ahead of now) plus halls that ended within the last
+        // week - a running hall's EndsAt is the moment it ended, so EndsAt > cutoff keeps recent ones in
         var rooms = await dbContext.Rooms
-            .Where(r => !r.IsPrivate && (r.PausedAt != null || r.EndsAt > nowDt))
+            .Where(r => !r.IsPrivate && (r.PausedAt != null || r.EndsAt > recentCutoffDt))
             .OrderByDescending(r => r.CreatedAt)
+            .Take(MaxListedRooms)
             .Select(r => new { r.Id, r.EndsAt, r.PausedAt })
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
-        // The earliest EndsAt among running halls is when the first one drops off the list
+        // A running hall leaves the list a week after it ends; the earliest such moment is when the set
+        // next changes on its own (status flips are handled per-room by GetRoom, not here)
         var runningEnds = rooms.Where(r => r.PausedAt == null).Select(r => r.EndsAt).ToList();
         if (runningEnds.Count != 0) {
-            var nextChangeAt = runningEnds.Min().DefaultKind(DateTimeKind.Utc).ToMoment();
+            var nextChangeAt = runningEnds.Min().DefaultKind(DateTimeKind.Utc).ToMoment() + RecentWindow;
             Computed.GetCurrent().Invalidate(nextChangeAt - now + TimeSpan.FromMilliseconds(100));
         }
         return [..rooms.Select(r => r.Id)];

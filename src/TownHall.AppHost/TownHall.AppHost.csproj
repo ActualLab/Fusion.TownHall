@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <Sdk Name="Aspire.AppHost.Sdk" Version="13.4.6" />
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsAspireHost>true</IsAspireHost>
+    <UserSecretsId>townhall-aspire-6b2d0e1a-4c77-4b2e-9c1a-townhall</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.AppHost" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TownHall.Host\TownHall.Host.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Remove the shared ActualLab.* global usings - the AppHost references no ActualLab packages -->
+    <Using Remove="*" />
+  </ItemGroup>
+
+</Project>

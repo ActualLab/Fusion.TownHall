@@ -9,6 +9,7 @@
   <ItemGroup>
     <ProjectReference Include="..\TownHall.Contracts\TownHall.Contracts.csproj" />
     <ProjectReference Include="..\TownHall.Db\TownHall.Db.csproj" />
+    <ProjectReference Include="..\TownHall.ServiceDefaults\TownHall.ServiceDefaults.csproj" />
     <ProjectReference Include="..\TownHall.UI\TownHall.UI.csproj" />
   </ItemGroup>
 

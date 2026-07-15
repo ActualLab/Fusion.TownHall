@@ -23,6 +23,8 @@ param(
     [Alias('c')]
     [string]$Configuration = "Debug",
     [int]$Port = 5136,
+    # Run the .NET Aspire AppHost (dashboard + full observability) instead of the host directly.
+    [switch]$Aspire,
     # Anything after the named params is forwarded to the TownHall server
     # as command-line arguments.
     [Parameter(ValueFromRemainingArguments = $true)]
@@ -32,6 +34,12 @@ param(
 $ErrorActionPreference = "Continue"
 $ScriptDir = $PSScriptRoot
 Set-Location $ScriptDir
+
+# Also accept a bare "--aspire" among the forwarded args (so `server-loop.ps1 --aspire` works too).
+if ($ServerArgs -contains '--aspire') {
+    $Aspire = $true
+    $ServerArgs = @($ServerArgs | Where-Object { $_ -ne '--aspire' })
+}
 
 $tmpDir = Join-Path $ScriptDir "tmp"
 if (-not (Test-Path $tmpDir)) {
@@ -153,10 +161,26 @@ while ($true) {
     # Step 2: server-run
     if (-not $failureMessage) {
         Write-LoopLog "Step 2/2 (server-run)"
-        $binDir = Join-Path $ScriptDir "artifacts/bin/TownHall.Host/$($Configuration.ToLowerInvariant())"
-        $serverBinary = Join-Path $binDir ($IsWindows ? "TownHall.Host.exe" : "TownHall.Host")
+        $cfgDir = $Configuration.ToLowerInvariant()
         $env:ASPNETCORE_ENVIRONMENT = "Development"
-        $env:ASPNETCORE_URLS = $baseUri
+        $env:DOTNET_ENVIRONMENT = "Development"
+        if ($Aspire) {
+            # Run the Aspire AppHost: it supervises the host (kept on :$Port) and streams its telemetry
+            # to the dashboard. Killing the AppHost triggers Aspire's orphan cleanup of the child + dashboard.
+            $binDir = Join-Path $ScriptDir "artifacts/bin/TownHall.AppHost/$cfgDir"
+            $serverBinary = Join-Path $binDir ($IsWindows ? "TownHall.AppHost.exe" : "TownHall.AppHost")
+            $env:ASPNETCORE_URLS = "http://localhost:18888"                        # Aspire dashboard
+            $env:DOTNET_DASHBOARD_OTLP_ENDPOINT_URL = "http://localhost:19070"     # OTLP receiver
+            $env:DOTNET_RESOURCE_SERVICE_ENDPOINT_URL = "http://localhost:20130"
+            $env:ASPIRE_ALLOW_UNSECURED_TRANSPORT = "true"
+            $env:DOTNET_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS = "true"               # No login token (local dev)
+            Write-LoopLog "Aspire mode: dashboard http://localhost:18888 (app stays on $baseUri)"
+        }
+        else {
+            $binDir = Join-Path $ScriptDir "artifacts/bin/TownHall.Host/$cfgDir"
+            $serverBinary = Join-Path $binDir ($IsWindows ? "TownHall.Host.exe" : "TownHall.Host")
+            $env:ASPNETCORE_URLS = $baseUri
+        }
         $proc = Start-ServerProcess `
             -ServerBinary $serverBinary `
             -ServerArgs   $ServerArgs `

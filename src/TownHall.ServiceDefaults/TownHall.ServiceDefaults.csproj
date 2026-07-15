@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsAspireSharedProject>true</IsAspireSharedProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" />
+    <!-- Npgsql's OpenTelemetry integration: DB traces (AddNpgsql) + the "Npgsql" metrics meter -->
+    <PackageReference Include="Npgsql.OpenTelemetry" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Remove the shared ActualLab.* global usings - this project references no ActualLab packages -->
+    <Using Remove="*" />
+  </ItemGroup>
+
+</Project>

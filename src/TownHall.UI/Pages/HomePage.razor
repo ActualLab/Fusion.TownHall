@@ -59,15 +59,18 @@ else {
     </MudPaper>
 }
 
-<MudText Typo="Typo.h6" GutterBottom="true">Active town halls</MudText>
+<MudText Typo="Typo.h6" GutterBottom="true">Active &amp; recent town halls</MudText>
 @if (State.ValueOrDefault is { IsDefault: false } roomIds) {
     @if (roomIds.Length == 0) {
         <MudText Typo="Typo.body2" Class="mud-text-secondary">
-            No active town halls yet — create the first one above!
+            No town halls yet — create the first one above!
         </MudText>
     }
     @foreach (var roomId in roomIds) {
         <RoomListRow @key="@roomId" RoomId="@roomId" />
+    }
+    @if (roomIds.Length >= _limit) {
+        <MudButton Class="mt-2" Variant="Variant.Text" Size="Size.Small" OnClick="ShowMore">Show more</MudButton>
     }
 }
 else {
@@ -83,6 +86,9 @@ else {
     private Room? _createdRoom;
     private string? _createdOwnerToken;
 
+    private const int PageSize = 100;
+    private int _limit = PageSize;
+
     protected override void OnInitialized()
     {
         // Local fields (title, post-create panel, etc.) change via events,
@@ -93,7 +99,14 @@ else {
     protected override async Task<ImmutableArray<string>> ComputeState(CancellationToken cancellationToken)
     {
         var session = await CircuitHub.SessionResolver.GetSession(cancellationToken);
-        return await Rooms.ListActive(session, cancellationToken);
+        return await Rooms.ListRooms(session, _limit, cancellationToken);
+    }
+
+    // The list is capped at _limit; growing it recomputes the state with a larger page
+    private void ShowMore()
+    {
+        _limit += PageSize;
+        _ = State.Recompute();
     }
 
     private async Task Create()

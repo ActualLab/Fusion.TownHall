@@ -46,16 +46,19 @@ which must equal `main`". The shared base for this repo:
 - `AGENTS-Source.md` (and `AGENTS-Suffix.md` if committed) — their source
 - `CODING_STYLE.md` — project coding conventions
 - `.claude/commands/` — shared slash commands (including this one)
+- `docs/comparisons/` — the per-branch comparison reports written by
+  `/compare-branches` (each branch carries the whole set)
 
-Everything else — `src/`, `tests/`, `README.md`, `docs/` (incl. the per-branch
-`docs/ai-sessions/**`), build/deploy files — is **branch-owned** and kept as-is.
+Everything else — `src/`, `tests/`, `README.md`, the rest of `docs/` (incl. the
+per-branch `docs/ai-sessions/**`), build/deploy files — is **branch-owned** and
+kept as-is.
 Extend the shared-base list above if you add another file that must be
 branch-agnostic; never add a file that legitimately differs per stack.
 
 Define the set once so the steps below can reuse it:
 
 ```bash
-SHARED_BASE=(AGENTS.md CLAUDE.md AGENTS-Source.md AGENTS-Suffix.md CODING_STYLE.md .claude/commands)
+SHARED_BASE=(AGENTS.md CLAUDE.md AGENTS-Source.md AGENTS-Suffix.md CODING_STYLE.md .claude/commands docs/comparisons)
 # Keep only the paths that actually exist on main
 SHARED_BASE=($(for p in "${SHARED_BASE[@]}"; do git cat-file -e "main:$p" 2>/dev/null && echo "$p"; done))
 ```

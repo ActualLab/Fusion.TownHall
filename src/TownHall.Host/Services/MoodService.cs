@@ -59,9 +59,10 @@ public class MoodService(IServiceProvider services) : DbServiceBase<AppDbContext
     [ComputeMethod]
     protected virtual async Task<MoodSummary> GetRoomMoodSummary(string roomId, CancellationToken cancellationToken = default)
     {
-        var presentIds = await Presence.GetPresentSessionIds(roomId).ConfigureAwait(false);
+        var present = await Presence.GetPresentSessions(roomId).ConfigureAwait(false);
         var counts = new int[5];
-        if (presentIds.Length != 0) {
+        if (present.Count != 0) {
+            var presentIds = present.SessionIds;
             var dbContext = await DbHub.CreateDbContext(cancellationToken).ConfigureAwait(false);
             await using var _1 = dbContext.ConfigureAwait(false);
 

@@ -19,7 +19,7 @@ public class RoomStatsService(IServiceProvider services) : DbServiceBase<AppDbCo
         var openCount = (await Questions.ListOpenQuestionIds(roomId, cancellationToken).ConfigureAwait(false)).Length;
         var resolvedCount = (await Questions.ListResolvedQuestionIds(roomId, cancellationToken).ConfigureAwait(false)).Length;
         var totalVoteCount = await GetTotalVoteCount(roomId, cancellationToken).ConfigureAwait(false);
-        var audienceCount = (await Presence.GetPresentSessionIds(roomId).ConfigureAwait(false)).Length;
+        var audienceCount = (await Presence.GetPresentSessions(roomId).ConfigureAwait(false)).Count;
         return new RoomStats(openCount, resolvedCount, totalVoteCount, audienceCount);
     }
 

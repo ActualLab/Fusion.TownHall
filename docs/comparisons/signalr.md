@@ -19,18 +19,35 @@ different places** — Fusion pushes ceremony into *contracts*, SignalR pushes i
 
 Net line delta by area (`signalr − main`; negative = signalr is smaller):
 
-| Area | +add | −del | net | who's smaller |
-|------|-----:|-----:|----:|---------------|
-| Contracts (`TownHall.Contracts`) | 111 | 282 | **−171** | signalr |
-| UI components (Pages/Shared/Layout) | 181 | 273 | **−92** | signalr |
-| Tests | 405 | 522 | **−117** | signalr |
-| Db | 3 | 16 | **−13** | signalr |
-| Host/Services | 636 | 611 | +25 | ~even |
-| Host wiring (`Program.cs` etc.) | 215 | 134 | **+81** | Fusion |
-| UI infra (`UI/Services`) | 449 | 76 | **+373** | Fusion |
+| Area | +add | −del | net | verdict |
+|------|-----:|-----:|----:|---------|
+| Contracts (`TownHall.Contracts`) | 111 | 282 | **−171** | signalr smaller |
+| UI components (Pages/Shared/Layout) | 181 | 273 | **−92** | signalr smaller |
+| UI infra (`UI/Services`) | 449 | 76 | **+373** | Fusion smaller |
+| Host wiring (`Program.cs` etc.) | 215 | 134 | **+81** | Fusion smaller |
+| Host/Services | 636 | 611 | +25 | **~even** (noise vs ~2 100 total) |
+| Db | 3 | 16 | −13 | **~even** (both are plain EF + one migration) |
+| Tests | 405 | 522 | −117 | **~even case count — see note** |
 
 Top files by churn: `RoomsService.cs` (357), `QuestionsService.cs` (295),
 `Program.cs` (162), `TownHallClient.cs` (+149, new), `IRooms.cs` (−112 net).
+
+**The even scopes are genuinely even.** Domain logic (`Host/Services`, +25) and the
+DB layer (−13) are within noise of each other — the framework choice barely touches
+the actual room/question/vote/mood logic or the EF model; both run the same schema
+and one migration. As expected, the *business code* is a wash.
+
+**Tests: case count is even, but Fusion's suite covers more.** Method counts are
+almost identical — **33** `[Fact]`/`[Theory]` on Fusion vs **34** on signalr — so the
+−117 lines is a *leaner harness*, not fewer cases. But Fusion **executes 62 vs
+signalr's 34**: every shared test runs against **both** the in-process server
+container *and* the RPC-client container (the `*ServerTests`/`*ClientTests` variant
+pairs), so Fusion's suite also exercises the **client/RPC transport** for free.
+signalr's `TestBase` has a single access point, so each test runs once. Each side
+also has framework-specific tests (Fusion: `InvalidationTests`,
+`PresenceConsolidationTests`; signalr: `PropagationTests` for stream re-yield). Net:
+**even authored effort, ~2× the executed coverage on Fusion** — count this as a
+Fusion coverage win, not a signalr size win.
 
 **Where SignalR is lighter**
 - **Contracts −171.** Fusion contracts carry a serializable `*_Command` record +
@@ -109,6 +126,10 @@ simpler but single-host and re-reads more eagerly.**
 - **Reconnect.** Fusion's RPC handles reconnect/replay in-framework; SignalR
   re-implements it in `TownHallClient` (auto-reconnect + re-subscribe), verified live
   in the port but more surface to get right.
+- **Test coverage — Fusion wins.** Fusion runs each shared test against both the
+  direct-server and the RPC-client container (62 executed vs signalr's 34 for a
+  near-identical ~33 authored cases), so its suite catches client/RPC-transport
+  regressions the signalr suite can't (it has one access point).
 
 ---
 

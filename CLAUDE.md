@@ -14,6 +14,14 @@ read it now.
 first reading [CODING_STYLE.md → "Regular comments, docstrings, XML
 documentation comments"](CODING_STYLE.md#regular-comments-docstrings-xml-documentation-comments).
 
+# Git workflow — don't branch unless asked
+
+Commit your changes directly to the version branch you're working on (the
+default is `main`). **You typically should NOT create a feature branch in this
+repo unless the user explicitly asks for one.** The per-framework version
+branches described below are a deliberate structure — don't add ad-hoc feature
+branches on top of them; a needless branch only adds a merge step later.
+
 # Version branches
 
 This app is implemented several times over — once per real-time stack — to

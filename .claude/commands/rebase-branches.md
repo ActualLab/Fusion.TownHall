@@ -48,17 +48,24 @@ which must equal `main`". The shared base for this repo:
 - `.claude/commands/` — shared slash commands (including this one)
 - `docs/comparisons/` — the per-branch comparison reports written by
   `/compare-branches` (each branch carries the whole set)
+- `docs/ai-sessions/` — **all** AI conversation logs (the top-level `main`/Fusion
+  logs **and** every per-branch subfolder). These describe most of the shared
+  architecture, so they must be present and identical on every branch — otherwise
+  `git diff main <branch>` would show main's logs as "removed", which is noise, not
+  a framework delta. `main` is the **canonical store**: a branch writes its own new
+  logs under `docs/ai-sessions/<branch>/`, and those are **promoted to `main`**
+  (copied into `main` and committed there) *before* rebasing, so the shared sync
+  then mirrors the full set back and the branch delta shows **no logs at all**.
 
-Everything else — `src/`, `tests/`, `README.md`, the rest of `docs/` (incl. the
-per-branch `docs/ai-sessions/**`), build/deploy files — is **branch-owned** and
-kept as-is.
+Everything else — `src/`, `tests/`, `README.md`, the rest of `docs/`, build/deploy
+files — is **branch-owned** and kept as-is.
 Extend the shared-base list above if you add another file that must be
 branch-agnostic; never add a file that legitimately differs per stack.
 
 Define the set once so the steps below can reuse it:
 
 ```bash
-SHARED_BASE=(AGENTS.md CLAUDE.md AGENTS-Source.md AGENTS-Suffix.md CODING_STYLE.md .claude/commands docs/comparisons)
+SHARED_BASE=(AGENTS.md CLAUDE.md AGENTS-Source.md AGENTS-Suffix.md CODING_STYLE.md .claude/commands docs/comparisons docs/ai-sessions)
 # Keep only the paths that actually exist on main
 SHARED_BASE=($(for p in "${SHARED_BASE[@]}"; do git cat-file -e "main:$p" 2>/dev/null && echo "$p"; done))
 ```
@@ -68,6 +75,12 @@ SHARED_BASE=($(for p in "${SHARED_BASE[@]}"; do git cat-file -e "main:$p" 2>/dev
 - `main` already holds the intended commits (commit any backport/shared-base
   change to `main` **before** running this — the rebase needs `main` to be a
   real commit, and the sync copies from it).
+- **Promote each branch's new AI logs to `main` first.** For every branch you're
+  about to rebase, copy its new `docs/ai-sessions/<branch>/` files into `main` and
+  commit them there (`git checkout <branch> -- docs/ai-sessions/<branch>` while on
+  `main`, then commit). This makes `main` a superset of every branch's logs, so the
+  shared-base sync below leaves the branch's `docs/ai-sessions/` byte-identical to
+  `main` (zero log delta). Skip only if the branch added no new logs.
 - The working tree is clean (`git status` empty). Stash or commit first.
 
 ## Procedure — per branch

@@ -5,9 +5,9 @@ public abstract class PresenceTests(TestAppHost host) : TestBase(host)
     [Fact]
     public async Task GetAudienceCountTracksWatchers()
     {
-        var owner = Session.New();
-        var watcher1 = Session.New();
-        var watcher2 = Session.New();
+        var owner = await NewUser();
+        var watcher1 = await NewUser();
+        var watcher2 = await NewUser();
         var room = await CreateRoom(owner, live: false);
         Assert.Equal(0, await Presence.GetAudienceCount(owner, room.Id));
         await Call(new Presence_Watch(watcher1, room.Id));

@@ -5,7 +5,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\TownHall.Contracts\TownHall.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\TownHall.Api\TownHall.Api.csproj" />
+    <ProjectReference Include="..\..\src\TownHall.Backend\TownHall.Backend.csproj" />
     <ProjectReference Include="..\..\src\TownHall.Host\TownHall.Host.csproj" />
   </ItemGroup>
 

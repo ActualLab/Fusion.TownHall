@@ -17,7 +17,7 @@ namespace TownHall.Db.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.1")
+                .HasAnnotation("ProductVersion", "10.0.9")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -97,29 +97,45 @@ namespace TownHall.Db.Migrations
                     b.Property<string>("RoomId")
                         .HasColumnType("text");
 
-                    b.Property<string>("SessionId")
+                    b.Property<string>("UserId")
                         .HasColumnType("text");
 
                     b.Property<int>("Level")
                         .HasColumnType("integer");
 
-                    b.HasKey("RoomId", "SessionId");
+                    b.HasKey("RoomId", "UserId");
 
                     b.ToTable("Moods");
                 });
 
-            modelBuilder.Entity("TownHall.Db.DbParticipant", b =>
+            modelBuilder.Entity("TownHall.Db.DbPasskeyCredential", b =>
                 {
-                    b.Property<string>("Id")
+                    b.Property<string>("CredentialId")
                         .HasColumnType("text");
 
-                    b.Property<string>("Name")
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<byte[]>("PublicKey")
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<long>("SignCount")
+                        .HasColumnType("bigint");
+
+                    b.Property<byte[]>("UserHandle")
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<string>("UserId")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.HasKey("Id");
+                    b.HasKey("CredentialId");
 
-                    b.ToTable("Participants");
+                    b.HasIndex("UserId");
+
+                    b.ToTable("PasskeyCredentials");
                 });
 
             modelBuilder.Entity("TownHall.Db.DbQuestion", b =>
@@ -206,12 +222,43 @@ namespace TownHall.Db.Migrations
                     b.Property<string>("RoomId")
                         .HasColumnType("text");
 
+                    b.Property<string>("UserId")
+                        .HasColumnType("text");
+
+                    b.HasKey("RoomId", "UserId");
+
+                    b.ToTable("RoomOwners");
+                });
+
+            modelBuilder.Entity("TownHall.Db.DbSessionUser", b =>
+                {
                     b.Property<string>("SessionId")
                         .HasColumnType("text");
 
-                    b.HasKey("RoomId", "SessionId");
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
 
-                    b.ToTable("RoomOwners");
+                    b.HasKey("SessionId");
+
+                    b.ToTable("SessionUsers");
+                });
+
+            modelBuilder.Entity("TownHall.Db.DbUser", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Users");
                 });
 
             modelBuilder.Entity("TownHall.Db.DbVote", b =>
@@ -222,13 +269,13 @@ namespace TownHall.Db.Migrations
                     b.Property<long>("QuestionIndex")
                         .HasColumnType("bigint");
 
-                    b.Property<string>("SessionId")
+                    b.Property<string>("UserId")
                         .HasColumnType("text");
 
                     b.Property<DateTime>("CastAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.HasKey("RoomId", "QuestionIndex", "SessionId");
+                    b.HasKey("RoomId", "QuestionIndex", "UserId");
 
                     b.ToTable("Votes");
                 });

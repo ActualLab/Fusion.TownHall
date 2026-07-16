@@ -9,9 +9,4 @@
     <PackageReference Include="ActualLab.Fusion" />
   </ItemGroup>
 
-  <!-- Source generators -->
-  <ItemGroup>
-    <PackageReference Include="ActualLab.Generators" PrivateAssets="all" />
-  </ItemGroup>
-
 </Project>

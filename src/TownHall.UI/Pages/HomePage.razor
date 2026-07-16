@@ -1,7 +1,12 @@
 @page "/"
-@inherits ComputedStateComponent<ImmutableArray<string>>
+@inherits ComputedStateComponent<HomePage.Model>
 @inject IRooms Rooms
+@inject IUsers Users
 @inject ISnackbar Snackbar
+
+@{
+    var isSignedIn = State.ValueOrDefault?.IsSignedIn ?? false;
+}
 
 <PageTitle>Town Hall</PageTitle>
 
@@ -33,6 +38,14 @@
         </MudStack>
     </MudPaper>
 }
+else if (!isSignedIn) {
+    <MudPaper Class="pa-4 mb-6" Elevation="3">
+        <MudText Typo="Typo.h6" GutterBottom="true">Create a town hall</MudText>
+        <MudAlert Severity="Severity.Info" Dense="true">
+            Sign in with a passkey (top-right) to create a town hall.
+        </MudAlert>
+    </MudPaper>
+}
 else {
     <MudPaper Class="pa-4 mb-6" Elevation="3">
         <MudText Typo="Typo.h6" GutterBottom="true">Create a town hall</MudText>
@@ -60,7 +73,8 @@ else {
 }
 
 <MudText Typo="Typo.h6" GutterBottom="true">Active &amp; recent town halls</MudText>
-@if (State.ValueOrDefault is { IsDefault: false } roomIds) {
+@if (State.ValueOrDefault is { RoomIds.IsDefault: false } m) {
+    var roomIds = m.RoomIds;
     @if (roomIds.Length == 0) {
         <MudText Typo="Typo.body2" Class="mud-text-secondary">
             No town halls yet — create the first one above!
@@ -96,10 +110,12 @@ else {
         MustRenderAfterEvent = true;
     }
 
-    protected override async Task<ImmutableArray<string>> ComputeState(CancellationToken cancellationToken)
+    protected override async Task<Model> ComputeState(CancellationToken cancellationToken)
     {
         var session = await CircuitHub.SessionResolver.GetSession(cancellationToken);
-        return await Rooms.ListRooms(session, _limit, cancellationToken);
+        var roomIds = await Rooms.ListRooms(session, _limit, cancellationToken);
+        var isSignedIn = await Users.GetOwnUserId(session, cancellationToken) != null;
+        return new Model(roomIds, isSignedIn);
     }
 
     // The list is capped at _limit; growing it recomputes the state with a larger page
@@ -135,4 +151,8 @@ else {
         await JS.InvokeVoidAsync("townHall.copyText", text);
         Snackbar.Add($"{what} copied to clipboard", Severity.Success);
     }
+
+    // Nested types
+
+    public sealed record Model(ImmutableArray<string> RoomIds, bool IsSignedIn);
 }

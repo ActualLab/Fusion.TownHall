@@ -93,7 +93,7 @@ void ConfigureServices()
         });
         // Batched by-key lookups for compute-method reads
         db.AddEntityResolver<string, DbRoom>();
-        db.AddEntityResolver<string, DbParticipant>();
+        db.AddEntityResolver<string, DbUser>();
         db.AddEntityResolver<string, DbQuestion>();
         // ReSharper disable once VariableHidesOuterVariable
         db.Services.AddTransientDbContextFactory<AppDbContext>((c, db) => {
@@ -111,12 +111,32 @@ void ConfigureServices()
     var fusion = services.AddFusion(RpcServiceMode.Server, true);
     fusion.AddWebServer();
     fusion.AddOperationReprocessor();
-    fusion.AddServer<IParticipants, ParticipantsService>();
+
+    // Backend services - local (not RPC-exposed); they do the work on ids and assume the caller
+    // is already authorized. The frontend services above are what RPC exposes.
+    fusion.AddComputeService<IUsersBackend, UsersBackend>();
+    fusion.AddComputeService<IRoomsBackend, RoomsBackend>();
+    fusion.AddComputeService<IQuestionsBackend, QuestionsBackend>();
+    fusion.AddComputeService<IRoomStatsBackend, RoomStatsBackend>();
+    fusion.AddComputeService<IPresenceBackend, PresenceBackend>();
+    fusion.AddComputeService<IMoodBackend, MoodBackend>();
+
+    // Frontend services - RPC-exposed; resolve Session -> user, check permissions, then delegate.
+    fusion.AddServer<IUsers, UsersService>();
+    fusion.AddServer<IAuth, AuthService>();
     fusion.AddServer<IRooms, RoomsService>();
     fusion.AddServer<IQuestions, QuestionsService>();
     fusion.AddServer<IRoomStats, RoomStatsService>();
     fusion.AddServer<IPresence, PresenceService>();
     fusion.AddServer<IMood, MoodService>();
+
+    // Passkey (WebAuthn) infrastructure
+    services.AddSingleton<PasskeyChallengeStore>();
+    services.AddFido2(fido2 => {
+        fido2.ServerDomain = hostSettings.PasskeyRpId;
+        fido2.ServerName = "TownHall";
+        fido2.Origins = hostSettings.PasskeyOrigins.ToHashSet(StringComparer.Ordinal);
+    });
 
     // Web
     services.AddServerSideBlazor(o => o.DetailedErrors = true);
@@ -156,4 +176,20 @@ void ConfigureApp()
     // Fusion endpoints
     app.MapRpcWebSocketServer();
     app.MapFusionRenderModeEndpoints();
+
+    // Dev-only sign-in without a passkey - for automated/manual testing of the signed-in flows.
+    // Gated to Development; never mapped in production.
+    if (env.IsDevelopment() || hostSettings.EnableDevSignIn) {
+        app.MapPost("/dev/signin", async (ISessionResolver sessionResolver, ICommander commander, string? name) => {
+            var session = await sessionResolver.GetSession();
+            var userId = await commander.Call(new UsersBackend_Create(name ?? ""));
+            await commander.Call(new UsersBackend_LinkSession(session.Id, userId));
+            return Results.Ok(new { userId });
+        });
+        app.MapPost("/dev/signout", async (ISessionResolver sessionResolver, ICommander commander) => {
+            var session = await sessionResolver.GetSession();
+            await commander.Call(new UsersBackend_UnlinkSession(session.Id));
+            return Results.Ok(new { ok = true });
+        });
+    }
 }

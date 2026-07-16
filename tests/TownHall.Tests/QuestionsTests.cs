@@ -5,7 +5,7 @@ public abstract class QuestionsTests(TestAppHost host) : TestBase(host)
     [Fact]
     public async Task OnPostRequiresLiveRoom()
     {
-        var owner = Session.New();
+        var owner = await NewUser();
         var room = await CreateRoom(owner, live: false);
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => Call(new Questions_Post(owner, room.Id, "Anyone there?")));
@@ -14,10 +14,10 @@ public abstract class QuestionsTests(TestAppHost host) : TestBase(host)
     [Fact]
     public async Task OnPostAssignsIndexesAndReferencesAuthorById()
     {
-        var owner = Session.New();
-        var other = Session.New();
+        var owner = await NewUser();
+        var other = await NewUser();
         var room = await CreateRoom(owner);
-        await Call(new Participants_SetName(owner, "Poster"));
+        await Call(new Users_SetName(owner, "Poster"));
         var q1 = await Call(new Questions_Post(owner, room.Id, "First?"));
         var q2 = await Call(new Questions_Post(owner, room.Id, "  Second?  "));
         Assert.Equal(1, q1.Index);
@@ -25,7 +25,7 @@ public abstract class QuestionsTests(TestAppHost host) : TestBase(host)
         Assert.Equal("Second?", q2.Text);
         // Questions reference the author by a stable id (not a name snapshot); same author -> same id
         Assert.Equal(q1.AuthorId, q2.AuthorId);
-        Assert.Equal("Poster", await Participants.GetName(q1.AuthorId));
+        Assert.Equal("Poster", (await Users.Get(owner, q1.AuthorId))!.Name);
         var q3 = await Call(new Questions_Post(other, room.Id, "Third?"));
         Assert.NotEqual(q1.AuthorId, q3.AuthorId);
     }
@@ -33,19 +33,19 @@ public abstract class QuestionsTests(TestAppHost host) : TestBase(host)
     [Fact]
     public async Task RenamePropagatesToAlreadyPostedQuestions()
     {
-        var owner = Session.New();
+        var owner = await NewUser();
         var room = await CreateRoom(owner);
-        await Call(new Participants_SetName(owner, "Poster"));
+        await Call(new Users_SetName(owner, "Poster"));
         var q = await Call(new Questions_Post(owner, room.Id, "Mine?"));
-        Assert.Equal("Poster", await Participants.GetName(q.AuthorId));
-        await Call(new Participants_SetName(owner, "Renamed"));
-        Assert.Equal("Renamed", await ReadWhen(() => Participants.GetName(q.AuthorId), n => n == "Renamed"));
+        Assert.Equal("Poster", (await Users.Get(owner, q.AuthorId))!.Name);
+        await Call(new Users_SetName(owner, "Renamed"));
+        Assert.Equal("Renamed", (await ReadWhen(() => Users.Get(owner, q.AuthorId), u => u!.Name == "Renamed"))!.Name);
     }
 
     [Fact]
     public async Task OnPostCollapsesWhitespaceToSingleParagraph()
     {
-        var owner = Session.New();
+        var owner = await NewUser();
         var room = await CreateRoom(owner);
         var question = await Call(new Questions_Post(owner, room.Id, "  Line one\n\r\n  line\ttwo   ok? "));
         Assert.Equal("Line one line two ok?", question.Text);
@@ -54,8 +54,8 @@ public abstract class QuestionsTests(TestAppHost host) : TestBase(host)
     [Fact]
     public async Task ListOpenAndListTopOpenOrdering()
     {
-        var owner = Session.New();
-        var voter = Session.New();
+        var owner = await NewUser();
+        var voter = await NewUser();
         var room = await CreateRoom(owner);
         var q1 = await Call(new Questions_Post(owner, room.Id, "Older?"));
         var q2 = await Call(new Questions_Post(owner, room.Id, "Newer?"));
@@ -69,8 +69,8 @@ public abstract class QuestionsTests(TestAppHost host) : TestBase(host)
     [Fact]
     public async Task OnVoteSetsAndClearsVote()
     {
-        var owner = Session.New();
-        var voter = Session.New();
+        var owner = await NewUser();
+        var voter = await NewUser();
         var room = await CreateRoom(owner);
         var q = await Call(new Questions_Post(owner, room.Id, "Votes?"));
         await Call(new Questions_Vote(voter, room.Id, q.Index, true));
@@ -85,7 +85,7 @@ public abstract class QuestionsTests(TestAppHost host) : TestBase(host)
     [Fact]
     public async Task OnVoteRequiresLiveRoomAndOpenQuestion()
     {
-        var owner = Session.New();
+        var owner = await NewUser();
         var room = await CreateRoom(owner);
         var q1 = await Call(new Questions_Post(owner, room.Id, "Resolved?"));
         var q2 = await Call(new Questions_Post(owner, room.Id, "Stopped?"));
@@ -100,8 +100,8 @@ public abstract class QuestionsTests(TestAppHost host) : TestBase(host)
     [Fact]
     public async Task OnResolveMovesQuestionToResolved()
     {
-        var owner = Session.New();
-        var other = Session.New();
+        var owner = await NewUser();
+        var other = await NewUser();
         var room = await CreateRoom(owner);
         var q = await Call(new Questions_Post(owner, room.Id, "Resolve me?"));
         await Call(new Questions_Vote(other, room.Id, q.Index, true));
@@ -117,7 +117,7 @@ public abstract class QuestionsTests(TestAppHost host) : TestBase(host)
     [Fact]
     public async Task ResolutionNoteEditableAfterEndedAndPreservesTime()
     {
-        var owner = Session.New();
+        var owner = await NewUser();
         var room = await CreateRoom(owner);
         var q = await Call(new Questions_Post(owner, room.Id, "Resolve later?"));
         // Mark resolved with no note
@@ -136,8 +136,8 @@ public abstract class QuestionsTests(TestAppHost host) : TestBase(host)
     [Fact]
     public async Task OnDeleteRemovesEverything()
     {
-        var owner = Session.New();
-        var voter = Session.New();
+        var owner = await NewUser();
+        var voter = await NewUser();
         var room = await CreateRoom(owner);
         var q = await Call(new Questions_Post(owner, room.Id, "Delete me?"));
         await Call(new Questions_Vote(voter, room.Id, q.Index, true));

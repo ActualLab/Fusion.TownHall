@@ -7,7 +7,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\TownHall.Contracts\TownHall.Contracts.csproj" />
+    <ProjectReference Include="..\TownHall.Api\TownHall.Api.csproj" />
+    <ProjectReference Include="..\TownHall.Backend\TownHall.Backend.csproj" />
     <ProjectReference Include="..\TownHall.Db\TownHall.Db.csproj" />
     <ProjectReference Include="..\TownHall.ServiceDefaults\TownHall.ServiceDefaults.csproj" />
     <ProjectReference Include="..\TownHall.UI\TownHall.UI.csproj" />
@@ -23,6 +24,8 @@
   <!-- Other packages -->
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" />
+    <PackageReference Include="Fido2" />
+    <PackageReference Include="Fido2.AspNet" />
   </ItemGroup>
 
   <!-- Source generators -->

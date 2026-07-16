@@ -7,7 +7,7 @@ public sealed class InvalidationTests(TestAppHost host) : TestBase(host)
     [Fact]
     public async Task ListOpenIsInvalidatedOnPost()
     {
-        var owner = Session.New();
+        var owner = await NewUser();
         var room = await CreateRoom(owner);
         var computed = await Computed.Capture(() => Questions.ListOpen(owner, room.Id));
         Assert.Empty(computed.Value);
@@ -28,7 +28,7 @@ public sealed class InvalidationTests(TestAppHost host) : TestBase(host)
         var clientQuestions = client.GetRequiredService<IQuestions>();
         var clientCommander = client.Commander();
 
-        var owner = Session.New();
+        var owner = await NewUser();
         var room = await clientCommander.Call(new Rooms_Create(owner, "Delay Test", TimeSpan.FromHours(1)));
         await clientCommander.Call(new Rooms_SetLive(owner, room.Id, true));
 
@@ -47,12 +47,12 @@ public sealed class InvalidationTests(TestAppHost host) : TestBase(host)
     [Fact]
     public async Task GetNameIsInvalidatedOnRename()
     {
-        var owner = Session.New();
+        var owner = await NewUser();
         var room = await CreateRoom(owner);
         var q = await Call(new Questions_Post(owner, room.Id, "Whose question?"));
-        var computed = await Computed.Capture(() => Participants.GetName(q.AuthorId));
-        await Call(new Participants_SetName(owner, "Renamed Author"));
+        var computed = await Computed.Capture(() => Users.Get(owner, q.AuthorId));
+        await Call(new Users_SetName(owner, "Renamed Author"));
         await computed.WhenInvalidated().WaitAsync(TimeSpan.FromSeconds(5));
-        Assert.Equal("Renamed Author", await Participants.GetName(q.AuthorId));
+        Assert.Equal("Renamed Author", (await Users.Get(owner, q.AuthorId))!.Name);
     }
 }

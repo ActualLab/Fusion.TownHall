@@ -1,0 +1,14 @@
+@inherits ComputedStateComponent<User>
+@inject IUsers Users
+
+@(State.ValueOrDefault?.Name ?? "")
+
+@code {
+    [Parameter, EditorRequired] public string UserId { get; set; } = "";
+
+    protected override async Task<User> ComputeState(CancellationToken cancellationToken)
+    {
+        var session = await CircuitHub.SessionResolver.GetSession(cancellationToken);
+        return await Users.Get(session, UserId, cancellationToken) ?? User.Guest;
+    }
+}

@@ -10,7 +10,7 @@ public abstract class TestBase(TestAppHost host) : IClassFixture<TestAppHost>
 
     protected TestAppHost Host { get; } = host;
     protected abstract IServiceProvider TestServices { get; }
-    protected IParticipants Participants => TestServices.GetRequiredService<IParticipants>();
+    protected IUsers Users => TestServices.GetRequiredService<IUsers>();
     protected IRooms Rooms => TestServices.GetRequiredService<IRooms>();
     protected IQuestions Questions => TestServices.GetRequiredService<IQuestions>();
     protected IRoomStats RoomStats => TestServices.GetRequiredService<IRoomStats>();
@@ -22,6 +22,24 @@ public abstract class TestBase(TestAppHost host) : IClassFixture<TestAppHost>
     // so tests use Call() at both access levels.
     protected Task<TResult> Call<TResult>(ICommand<TResult> command)
         => Commander.Call(command);
+
+    // Signs a session in (guests can't act). Uses the server-side backend directly - there's no
+    // headless passkey ceremony - so it works for both the server- and client-container test variants.
+    protected async Task<string> SignIn(Session session, string name = "")
+    {
+        var serverCommander = Host.Services.Commander();
+        var userId = await serverCommander.Call(new UsersBackend_Create(name));
+        await serverCommander.Call(new UsersBackend_LinkSession(session.Id, userId));
+        return userId;
+    }
+
+    // A fresh, signed-in session (the common case: a real participant).
+    protected async Task<Session> NewUser(string name = "")
+    {
+        var session = Session.New();
+        await SignIn(session, name);
+        return session;
+    }
 
     protected async Task<Room> CreateRoom(Session session, bool live = true)
     {

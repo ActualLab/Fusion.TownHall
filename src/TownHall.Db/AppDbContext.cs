@@ -13,7 +13,9 @@ public class AppDbContext(DbContextOptions options) : DbContextBase(options)
 
     public DbSet<DbRoom> Rooms { get; protected set; } = null!;
     public DbSet<DbRoomOwner> RoomOwners { get; protected set; } = null!;
-    public DbSet<DbParticipant> Participants { get; protected set; } = null!;
+    public DbSet<DbUser> Users { get; protected set; } = null!;
+    public DbSet<DbPasskeyCredential> PasskeyCredentials { get; protected set; } = null!;
+    public DbSet<DbSessionUser> SessionUsers { get; protected set; } = null!;
     public DbSet<DbQuestion> Questions { get; protected set; } = null!;
     public DbSet<DbVote> Votes { get; protected set; } = null!;
     public DbSet<DbMood> Moods { get; protected set; } = null!;
@@ -25,9 +27,10 @@ public class AppDbContext(DbContextOptions options) : DbContextBase(options)
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-        modelBuilder.Entity<DbRoomOwner>().HasKey(o => new { o.RoomId, o.SessionId });
+        modelBuilder.Entity<DbRoomOwner>().HasKey(o => new { o.RoomId, o.UserId });
+        modelBuilder.Entity<DbPasskeyCredential>().HasIndex(c => c.UserId);
         modelBuilder.Entity<DbQuestion>().HasIndex(q => new { q.RoomId, q.Index }).IsUnique();
-        modelBuilder.Entity<DbVote>().HasKey(v => new { v.RoomId, v.QuestionIndex, v.SessionId });
-        modelBuilder.Entity<DbMood>().HasKey(m => new { m.RoomId, m.SessionId });
+        modelBuilder.Entity<DbVote>().HasKey(v => new { v.RoomId, v.QuestionIndex, v.UserId });
+        modelBuilder.Entity<DbMood>().HasKey(m => new { m.RoomId, m.UserId });
     }
 }

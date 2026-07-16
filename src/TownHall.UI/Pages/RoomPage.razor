@@ -2,6 +2,7 @@
 @inherits ComputedStateComponent<RoomPage.Model>
 @inject IRooms Rooms
 @inject IRoomStats RoomStats
+@inject IUsers Users
 @inject TownHall.UI.Services.LayoutState LayoutState
 
 @{
@@ -91,7 +92,7 @@ else if (room.Status == RoomStatus.Ended) {
 </div>
 <MudGrid>
     <MudItem xs="12" md="8" Class="@($"{(_mobileTab == MobileTab.Questions ? "" : "d-none")} d-md-block")">
-        <QuestionComposer RoomId="@RoomId" IsLive="@(room.Status == RoomStatus.Live)" />
+        <QuestionComposer RoomId="@RoomId" IsLive="@(room.Status == RoomStatus.Live)" IsSignedIn="@m.IsSignedIn" />
         @if (m.Stats.OpenQuestionCount + m.Stats.ResolvedQuestionCount > 0) {
             <MudTabs Elevation="1" Rounded="true" ApplyEffectsToContainer="true">
                 <MudTabPanel Text="@($"Top ({m.Stats.OpenQuestionCount})")">
@@ -124,7 +125,7 @@ else if (room.Status == RoomStatus.Ended) {
         }
     </MudItem>
     <MudItem xs="12" md="4" Class="@($"{(_mobileTab == MobileTab.Mood ? "" : "d-none")} d-md-block")">
-        <MoodPanel RoomId="@RoomId" IsLive="@(room.Status == RoomStatus.Live)" />
+        <MoodPanel RoomId="@RoomId" IsLive="@(room.Status == RoomStatus.Live)" IsSignedIn="@m.IsSignedIn" />
     </MudItem>
 </MudGrid>
 
@@ -142,11 +143,12 @@ else if (room.Status == RoomStatus.Ended) {
         var session = await CircuitHub.SessionResolver.GetSession(cancellationToken);
         var room = await Rooms.Get(session, RoomId, cancellationToken);
         if (room == null)
-            return new Model(null, false, new RoomStats(0, 0, 0, 0));
+            return new Model(null, false, new RoomStats(0, 0, 0, 0), false);
 
         var isOwner = await Rooms.IsOwner(session, RoomId, cancellationToken);
         var stats = await RoomStats.GetStats(session, RoomId, cancellationToken);
-        return new Model(room, isOwner, stats);
+        var isSignedIn = await Users.GetOwnUserId(session, cancellationToken) != null;
+        return new Model(room, isOwner, stats, isSignedIn);
     }
 
     private static string BuildPageTitle(Room room, RoomStats stats)
@@ -168,5 +170,5 @@ else if (room.Status == RoomStatus.Ended) {
 
     private enum MobileTab { Questions, Mood }
 
-    public sealed record Model(Room? Room, bool IsOwner, RoomStats Stats);
+    public sealed record Model(Room? Room, bool IsOwner, RoomStats Stats, bool IsSignedIn);
 }

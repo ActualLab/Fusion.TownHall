@@ -18,8 +18,9 @@ public static class ClientStartup
         var fusion = services.AddFusion();
         fusion.Rpc.AddWebSocketClient(builder.HostEnvironment.BaseAddress);
 
-        // RPC clients
-        fusion.AddClient<IParticipants>();
+        // RPC clients - only the frontend services are exposed over RPC
+        fusion.AddClient<IUsers>();
+        fusion.AddClient<IAuth>();
         fusion.AddClient<IRooms>();
         fusion.AddClient<IQuestions>();
         fusion.AddClient<IRoomStats>();
@@ -40,6 +41,7 @@ public static class ClientStartup
         fusion.AddBlazor();
         services.AddScoped<IUpdateDelayer>(c => new UpdateDelayer(c.UIActionTracker(), 0.25)); // 0.25s
         services.AddScoped<TownHall.UI.Services.LayoutState>();
+        services.AddScoped<TownHall.UI.Services.PasskeyClient>();
         services.AddMudServices();
     }
 }

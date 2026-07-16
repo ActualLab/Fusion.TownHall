@@ -2,6 +2,23 @@ using MessagePack;
 
 namespace TownHall;
 
+// A public user projection - safe to show to anyone. Guests are represented by null at the
+// API boundary; the UI substitutes User.Guest (see IUsers.Get / User.Guest).
+[MessagePackObject(true)]
+public sealed record User(string Id, string Name)
+{
+    public static readonly User Guest = new("", "Guest");
+
+    public bool IsGuest => Id.Length == 0;
+}
+
+// The signed-in user's own account (also the backend's view). Extends User with account-only fields.
+[MessagePackObject(true)]
+public sealed record UserFull(string Id, string Name, Moment CreatedAt)
+{
+    public User ToUser() => new(Id, Name);
+}
+
 public enum RoomStatus
 {
     Paused = 0,   // Default at creation; not yet started or temporarily halted (timer frozen)
@@ -32,13 +49,13 @@ public enum QuestionStatus { Open = 0, Resolved = 1 }
 
 // Immutable after creation. Mutable facets live behind their own reads:
 // vote count -> IQuestions.GetVoteCount, resolution -> IQuestions.GetResolution,
-// author name -> IParticipants.GetName(AuthorId), so renames are reflected live.
+// author name -> IUsers.Get(AuthorId), so renames are reflected live.
 [MessagePackObject(true)]
 public sealed record Question(
     string RoomId,
     // Per-room, unique, monotonic; gaps possible after deletions
     long Index,
-    // Public, stable id of the poster; resolve to a name via IParticipants.GetName
+    // Public, stable id of the poster; resolve to a name via IUsers.Get
     string AuthorId,
     string Text,
     Moment PostedAt
@@ -49,9 +66,6 @@ public sealed record Resolution(
     string Note,  // "" if the owner resolved without a note
     Moment ResolvedAt
 );
-
-[MessagePackObject(true)]
-public sealed record ParticipantInfo(string Name);
 
 [MessagePackObject(true)]
 public sealed record TrendingQuestion(
@@ -70,7 +84,7 @@ public sealed record RoomStats(
 
 [MessagePackObject(true)]
 public sealed record MoodSummary(
-    ImmutableArray<int> Counts,  // Length 5; Counts[i] = present sessions at level i+1
+    ImmutableArray<int> Counts,  // Length 5; Counts[i] = present users at level i+1
     int VoterCount,              // Sum of Counts
     double? Average              // null when VoterCount == 0
 );

@@ -10,10 +10,10 @@ public static class AppDbContextExt
             ?? throw new KeyNotFoundException("Room not found.");
 
     public static async Task RequireRoomOwner(
-        this AppDbContext dbContext, string roomId, string sessionId, CancellationToken cancellationToken)
+        this AppDbContext dbContext, string roomId, string userId, CancellationToken cancellationToken)
     {
         var isOwner = await dbContext.RoomOwners
-            .AnyAsync(o => o.RoomId == roomId && o.SessionId == sessionId, cancellationToken)
+            .AnyAsync(o => o.RoomId == roomId && o.UserId == userId, cancellationToken)
             .ConfigureAwait(false);
         if (!isOwner)
             throw new UnauthorizedAccessException("Only town hall owners can do this.");

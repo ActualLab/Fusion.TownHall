@@ -1,6 +1,7 @@
 @using TownHall.UI.Services
 @inherits ComputedStateComponent<QuestionCard.Model>
 @inject IQuestions Questions
+@inject IUsers Users
 
 @{
     var m = State.ValueOrDefault;
@@ -19,7 +20,7 @@
     }
     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
         <MudText Typo="Typo.caption" Class="mud-text-secondary">
-            — by <ParticipantName ParticipantId="@question.AuthorId" /> · @TimeText.Ago(question.PostedAt)
+            — by <UserName UserId="@question.AuthorId" /> · @TimeText.Ago(question.PostedAt)
         </MudText>
         <MudSpacer />
         @if (IsOwner) {
@@ -41,13 +42,15 @@
                 }
             }
         }
-        <MudButton StartIcon="@Icons.Material.Filled.ThumbUp" Size="Size.Small"
-                   Variant="@(m.HasOwnVote ? Variant.Filled : Variant.Outlined)"
-                   Color="Color.Primary"
-                   Disabled="@(!IsLive || isResolved)"
-                   OnClick="ToggleVote">
-            @m.VoteCount
-        </MudButton>
+        <MudTooltip Text="@(m.IsSignedIn ? "" : "Sign in to vote")" Disabled="@m.IsSignedIn">
+            <MudButton StartIcon="@Icons.Material.Filled.ThumbUp" Size="Size.Small"
+                       Variant="@(m.HasOwnVote ? Variant.Filled : Variant.Outlined)"
+                       Color="Color.Primary"
+                       Disabled="@(!IsLive || isResolved || !m.IsSignedIn)"
+                       OnClick="ToggleVote">
+                @m.VoteCount
+            </MudButton>
+        </MudTooltip>
     </MudStack>
     @if (_isResolving) {
         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mt-2">
@@ -83,12 +86,13 @@
         var session = await CircuitHub.SessionResolver.GetSession(cancellationToken);
         var question = await Questions.Get(session, RoomId, Index, cancellationToken);
         if (question == null)
-            return new Model(null, 0, false, null);
+            return new Model(null, 0, false, null, false);
 
         var voteCount = await Questions.GetVoteCount(session, RoomId, Index, cancellationToken);
         var hasOwnVote = await Questions.HasOwnVote(session, RoomId, Index, cancellationToken);
         var resolution = await Questions.GetResolution(session, RoomId, Index, cancellationToken);
-        return new Model(question, voteCount, hasOwnVote, resolution);
+        var isSignedIn = await Users.GetOwnUserId(session, cancellationToken) != null;
+        return new Model(question, voteCount, hasOwnVote, resolution, isSignedIn);
     }
 
     private Task ToggleVote()
@@ -111,5 +115,5 @@
 
     // Nested types
 
-    public sealed record Model(Question? Question, int VoteCount, bool HasOwnVote, Resolution? Resolution);
+    public sealed record Model(Question? Question, int VoteCount, bool HasOwnVote, Resolution? Resolution, bool IsSignedIn);
 }

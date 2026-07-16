@@ -1,282 +1,87 @@
-using ActualLab.Fusion.EntityFramework;
-using Microsoft.EntityFrameworkCore;
-using TownHall.Db;
-
 namespace TownHall.Host.Services;
 
-public class QuestionsService(IServiceProvider services) : DbServiceBase<AppDbContext>(services), IQuestions
+// Frontend questions service: reads open to guests; posting/voting require sign-in; resolve/delete
+// require room ownership. Argument + room-status validation lives in IQuestionsBackend.
+public class QuestionsService(IServiceProvider services) : IQuestions
 {
-    private IDbEntityResolver<string, DbQuestion> QuestionResolver { get; }
-        = services.DbEntityResolver<string, DbQuestion>();
+    private IQuestionsBackend Backend => field ??= services.GetRequiredService<IQuestionsBackend>();
+    private IRoomsBackend Rooms => field ??= services.GetRequiredService<IRoomsBackend>();
+    private IUsersBackend Users => field ??= services.GetRequiredService<IUsersBackend>();
+    private ICommander Commander => field ??= services.Commander();
 
-    public virtual async Task<Question?> Get(Session session, string roomId, long index, CancellationToken cancellationToken = default)
-        => await GetQuestion(roomId, index, cancellationToken).ConfigureAwait(false);
+    public virtual Task<Question?> Get(Session session, string roomId, long index, CancellationToken cancellationToken = default)
+        => Backend.Get(roomId, index, cancellationToken);
 
-    public virtual async Task<ImmutableArray<long>> ListOpen(Session session, string roomId, CancellationToken cancellationToken = default)
-        => await ListOpenQuestionIds(roomId, cancellationToken).ConfigureAwait(false);
+    public virtual Task<ImmutableArray<long>> ListOpen(Session session, string roomId, CancellationToken cancellationToken = default)
+        => Backend.ListOpen(roomId, cancellationToken);
 
-    public virtual async Task<ImmutableArray<long>> ListTopOpen(Session session, string roomId, int limit, CancellationToken cancellationToken = default)
-    {
-        var openIds = await ListOpenQuestionIds(roomId, cancellationToken).ConfigureAwait(false);
-        var counted = new List<(long Index, int Count)>(openIds.Length);
-        foreach (var index in openIds)
-            counted.Add((index, await GetQuestionVoteCount(roomId, index, cancellationToken).ConfigureAwait(false)));
-        return [
-            ..counted
-                .OrderByDescending(x => x.Count)
-                .ThenBy(x => x.Index)
-                .Take(limit)
-                .Select(x => x.Index)
-        ];
-    }
+    public virtual Task<ImmutableArray<long>> ListTopOpen(Session session, string roomId, int limit, CancellationToken cancellationToken = default)
+        => Backend.ListTopOpen(roomId, limit, cancellationToken);
 
-    public virtual async Task<ImmutableArray<long>> ListResolved(Session session, string roomId, CancellationToken cancellationToken = default)
-        => await ListResolvedQuestionIds(roomId, cancellationToken).ConfigureAwait(false);
+    public virtual Task<ImmutableArray<long>> ListResolved(Session session, string roomId, CancellationToken cancellationToken = default)
+        => Backend.ListResolved(roomId, cancellationToken);
 
-    public virtual async Task<Resolution?> GetResolution(Session session, string roomId, long index, CancellationToken cancellationToken = default)
-        => await GetQuestionResolution(roomId, index, cancellationToken).ConfigureAwait(false);
+    public virtual Task<Resolution?> GetResolution(Session session, string roomId, long index, CancellationToken cancellationToken = default)
+        => Backend.GetResolution(roomId, index, cancellationToken);
 
-    public virtual async Task<int> GetVoteCount(Session session, string roomId, long index, CancellationToken cancellationToken = default)
-        => await GetQuestionVoteCount(roomId, index, cancellationToken).ConfigureAwait(false);
+    public virtual Task<int> GetVoteCount(Session session, string roomId, long index, CancellationToken cancellationToken = default)
+        => Backend.GetVoteCount(roomId, index, cancellationToken);
 
     public virtual async Task<bool> HasOwnVote(Session session, string roomId, long index, CancellationToken cancellationToken = default)
     {
-        var dbContext = await DbHub.CreateDbContext(cancellationToken).ConfigureAwait(false);
-        await using var _1 = dbContext.ConfigureAwait(false);
-
-        string sessionId = session.Id;
-        return await dbContext.Votes
-            .AnyAsync(v => v.RoomId == roomId && v.QuestionIndex == index && v.SessionId == sessionId, cancellationToken)
-            .ConfigureAwait(false);
+        var userId = await Users.GetUserIdBySession(session.Id, cancellationToken).ConfigureAwait(false);
+        return userId != null && await Backend.HasVote(roomId, index, userId, cancellationToken).ConfigureAwait(false);
     }
 
     public virtual async Task<Question> OnPost(Questions_Post command, CancellationToken cancellationToken = default)
     {
-        var (session, roomId, text) = command;
-        var context = CommandContext.GetCurrent();
-        if (Invalidation.IsActive) {
-            var index = context.Operation.Items.Get<long>("Index");
-            _ = GetQuestion(roomId, index, default);
-            _ = ListOpenQuestionIds(roomId, default);
+        if (Invalidation.IsActive)
             return null!;
-        }
 
-        // Questions are single-paragraph: line feeds and whitespace runs collapse to single spaces
-        text = string.Join(" ", text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
-        if (text.Length is < 1 or > 500)
-            throw new ArgumentException("Question text must be 1..500 characters long.");
-
-        var dbContext = await DbHub.CreateOperationDbContext(cancellationToken).ConfigureAwait(false);
-        await using var _1 = dbContext.ConfigureAwait(false);
-
-        var dbRoom = await dbContext.GetRoom(roomId, cancellationToken).ConfigureAwait(false);
-        var now = Clocks.SystemClock.Now.ToDbPrecision();
-        if (dbRoom.GetStatus(now) != RoomStatus.Live)
-            throw new InvalidOperationException("This town hall is not live.");
-
-        var authorId = ParticipantId.Of(session);
-        var questionIndex = dbRoom.NextQuestionIndex++;
-        var dbQuestion = new DbQuestion {
-            Key = DbQuestion.ComposeKey(roomId, questionIndex),
-            RoomId = roomId,
-            Index = questionIndex,
-            AuthorId = authorId,
-            Text = text,
-            PostedAt = now,
-        };
-        dbContext.Add(dbQuestion);
-        await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        context.Operation.Items.Set("Index", dbQuestion.Index);
-        return new Question(roomId, dbQuestion.Index, authorId, text, now);
+        var (session, roomId, text) = command;
+        var userId = (await GetOwnUserId(session, cancellationToken).ConfigureAwait(false)).RequireSignedIn();
+        return await Commander.Call(new QuestionsBackend_Post(roomId, userId, text), true, cancellationToken).ConfigureAwait(false);
     }
 
     public virtual async Task OnVote(Questions_Vote command, CancellationToken cancellationToken = default)
     {
-        var (session, roomId, index, value) = command;
-        if (Invalidation.IsActive) {
-            _ = GetQuestionVoteCount(roomId, index, default);
-            _ = HasOwnVote(session, roomId, index, default);
-            _ = PseudoVotes(roomId);
+        if (Invalidation.IsActive)
             return;
-        }
 
-        var dbContext = await DbHub.CreateOperationDbContext(cancellationToken).ConfigureAwait(false);
-        await using var _1 = dbContext.ConfigureAwait(false);
-
-        var dbRoom = await dbContext.GetRoom(roomId, cancellationToken).ConfigureAwait(false);
-        var now = Clocks.SystemClock.Now.ToDbPrecision();
-        if (dbRoom.GetStatus(now) != RoomStatus.Live)
-            throw new InvalidOperationException("This town hall is not live.");
-
-        var dbQuestion = await dbContext.Questions
-            .FirstOrDefaultAsync(q => q.Key == DbQuestion.ComposeKey(roomId, index), cancellationToken)
-            .ConfigureAwait(false)
-            ?? throw new KeyNotFoundException("Question not found.");
-        if (dbQuestion.ResolvedAt != null)
-            throw new InvalidOperationException("Voting is closed for resolved questions.");
-
-        string sessionId = session.Id;
-        var dbVote = await dbContext.Votes
-            .FirstOrDefaultAsync(v => v.RoomId == roomId && v.QuestionIndex == index && v.SessionId == sessionId, cancellationToken)
-            .ConfigureAwait(false);
-        if (value) {
-            if (dbVote == null)
-                dbContext.Add(new DbVote { RoomId = roomId, QuestionIndex = index, SessionId = sessionId, CastAt = now });
-            else
-                dbVote.CastAt = now;
-        }
-        else {
-            if (dbVote == null)
-                return;
-
-            dbContext.Remove(dbVote);
-        }
-        await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        var (session, roomId, index, value) = command;
+        var userId = (await GetOwnUserId(session, cancellationToken).ConfigureAwait(false)).RequireSignedIn();
+        await Commander.Call(new QuestionsBackend_Vote(roomId, index, userId, value), true, cancellationToken).ConfigureAwait(false);
     }
 
     public virtual async Task OnResolve(Questions_Resolve command, CancellationToken cancellationToken = default)
     {
-        var (session, roomId, index, note) = command;
-        if (Invalidation.IsActive) {
-            _ = ListOpenQuestionIds(roomId, default);
-            _ = ListResolvedQuestionIds(roomId, default);
-            _ = GetQuestionResolution(roomId, index, default);
+        if (Invalidation.IsActive)
             return;
-        }
 
-        // Single paragraph, like a question
-        note = string.Join(" ", note.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
-        if (note.Length > 500)
-            throw new ArgumentException("Resolution note must be at most 500 characters long.");
-
-        var dbContext = await DbHub.CreateOperationDbContext(cancellationToken).ConfigureAwait(false);
-        await using var _1 = dbContext.ConfigureAwait(false);
-
-        // Resolution (and its note) is question metadata, so it stays editable even after Ended —
-        // one owner can mark a question resolved and another can add or edit the note later
-        await dbContext.RequireRoomOwner(roomId, session.Id, cancellationToken).ConfigureAwait(false);
-        var now = Clocks.SystemClock.Now.ToDbPrecision();
-
-        var dbQuestion = await dbContext.Questions
-            .FirstOrDefaultAsync(q => q.Key == DbQuestion.ComposeKey(roomId, index), cancellationToken)
-            .ConfigureAwait(false)
-            ?? throw new KeyNotFoundException("Question not found.");
-        // Preserve the original resolution time when only the note is being edited
-        dbQuestion.ResolvedAt ??= now;
-        dbQuestion.ResolutionNote = note;
-        await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        var (session, roomId, index, note) = command;
+        await RequireOwner(session, roomId, cancellationToken).ConfigureAwait(false);
+        await Commander.Call(new QuestionsBackend_Resolve(roomId, index, note), true, cancellationToken).ConfigureAwait(false);
     }
 
     public virtual async Task OnDelete(Questions_Delete command, CancellationToken cancellationToken = default)
     {
+        if (Invalidation.IsActive)
+            return;
+
         var (session, roomId, index) = command;
-        var context = CommandContext.GetCurrent();
-        if (Invalidation.IsActive) {
-            _ = GetQuestion(roomId, index, default);
-            _ = ListOpenQuestionIds(roomId, default);
-            _ = ListResolvedQuestionIds(roomId, default);
-            _ = GetQuestionResolution(roomId, index, default);
-            _ = GetQuestionVoteCount(roomId, index, default);
-            _ = PseudoVotes(roomId);
-            var voterIds = context.Operation.Items.Get<string[]>("VoterIds") ?? [];
-            foreach (var voterId in voterIds)
-                _ = HasOwnVote(new Session(voterId), roomId, index, default);
-            return;
-        }
-
-        var dbContext = await DbHub.CreateOperationDbContext(cancellationToken).ConfigureAwait(false);
-        await using var _1 = dbContext.ConfigureAwait(false);
-
-        var dbRoom = await dbContext.GetRoom(roomId, cancellationToken).ConfigureAwait(false);
-        await dbContext.RequireRoomOwner(roomId, session.Id, cancellationToken).ConfigureAwait(false);
-        var now = Clocks.SystemClock.Now.ToDbPrecision();
-        if (dbRoom.GetStatus(now) == RoomStatus.Ended)
-            throw new InvalidOperationException("This town hall has ended.");
-
-        var dbQuestion = await dbContext.Questions
-            .FirstOrDefaultAsync(q => q.Key == DbQuestion.ComposeKey(roomId, index), cancellationToken)
-            .ConfigureAwait(false);
-        if (dbQuestion == null)
-            return;
-
-        var dbVotes = await dbContext.Votes
-            .Where(v => v.RoomId == roomId && v.QuestionIndex == index)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
-        dbContext.Remove(dbQuestion);
-        dbContext.RemoveRange(dbVotes);
-        await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        context.Operation.Items.Set("VoterIds", dbVotes.Select(v => v.SessionId).ToArray());
+        await RequireOwner(session, roomId, cancellationToken).ConfigureAwait(false);
+        await Commander.Call(new QuestionsBackend_Delete(roomId, index), true, cancellationToken).ConfigureAwait(false);
     }
 
-    // Protected/internal methods
+    // Private methods
 
-    // The session-less compute methods below are public (though not part of IQuestions),
-    // so RoomStatsService can compose on top of them.
+    private Task<string?> GetOwnUserId(Session session, CancellationToken cancellationToken)
+        => Users.GetUserIdBySession(session.Id, cancellationToken);
 
-    [ComputeMethod]
-    public virtual async Task<Question?> GetQuestion(string roomId, long index, CancellationToken cancellationToken = default)
+    private async Task RequireOwner(Session session, string roomId, CancellationToken cancellationToken)
     {
-        var dbQuestion = await QuestionResolver.Get(DbQuestion.ComposeKey(roomId, index), cancellationToken).ConfigureAwait(false);
-        return dbQuestion == null
-            ? null
-            : new Question(roomId, dbQuestion.Index, dbQuestion.AuthorId, dbQuestion.Text,
-                dbQuestion.PostedAt.DefaultKind(DateTimeKind.Utc));
+        var userId = (await GetOwnUserId(session, cancellationToken).ConfigureAwait(false)).RequireSignedIn();
+        if (!await Rooms.IsOwner(roomId, userId, cancellationToken).ConfigureAwait(false))
+            throw new UnauthorizedAccessException("Only town hall owners can do this.");
     }
-
-    [ComputeMethod]
-    public virtual async Task<ImmutableArray<long>> ListOpenQuestionIds(string roomId, CancellationToken cancellationToken = default)
-    {
-        var dbContext = await DbHub.CreateDbContext(cancellationToken).ConfigureAwait(false);
-        await using var _1 = dbContext.ConfigureAwait(false);
-
-        var ids = await dbContext.Questions
-            .Where(q => q.RoomId == roomId && q.ResolvedAt == null)
-            .OrderByDescending(q => q.Index)
-            .Select(q => q.Index)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
-        return [..ids];
-    }
-
-    [ComputeMethod]
-    public virtual async Task<ImmutableArray<long>> ListResolvedQuestionIds(string roomId, CancellationToken cancellationToken = default)
-    {
-        var dbContext = await DbHub.CreateDbContext(cancellationToken).ConfigureAwait(false);
-        await using var _1 = dbContext.ConfigureAwait(false);
-
-        var ids = await dbContext.Questions
-            .Where(q => q.RoomId == roomId && q.ResolvedAt != null)
-            .OrderByDescending(q => q.ResolvedAt)
-            .Select(q => q.Index)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
-        return [..ids];
-    }
-
-    [ComputeMethod]
-    public virtual async Task<Resolution?> GetQuestionResolution(string roomId, long index, CancellationToken cancellationToken = default)
-    {
-        var dbQuestion = await QuestionResolver.Get(DbQuestion.ComposeKey(roomId, index), cancellationToken).ConfigureAwait(false);
-        return dbQuestion?.ResolvedAt is not { } resolvedAt
-            ? null
-            : new Resolution(dbQuestion.ResolutionNote, resolvedAt.DefaultKind(DateTimeKind.Utc));
-    }
-
-    [ComputeMethod]
-    public virtual async Task<int> GetQuestionVoteCount(string roomId, long index, CancellationToken cancellationToken = default)
-    {
-        var dbContext = await DbHub.CreateDbContext(cancellationToken).ConfigureAwait(false);
-        await using var _1 = dbContext.ConfigureAwait(false);
-
-        return await dbContext.Votes
-            .CountAsync(v => v.RoomId == roomId && v.QuestionIndex == index, cancellationToken)
-            .ConfigureAwait(false);
-    }
-
-    // A pseudo dependency invalidated by any vote change in a room;
-    // trending and total-vote-count reads depend on it.
-    [ComputeMethod]
-    public virtual Task<Unit> PseudoVotes(string roomId)
-        => TaskExt.UnitTask;
 }

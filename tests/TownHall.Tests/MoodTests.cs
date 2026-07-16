@@ -5,7 +5,7 @@ public abstract class MoodTests(TestAppHost host) : TestBase(host)
     [Fact]
     public async Task OnSetMoodRequiresLiveRoomAndValidLevel()
     {
-        var owner = Session.New();
+        var owner = await NewUser();
         var room = await CreateRoom(owner, live: false);
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => Call(new Mood_Set(owner, room.Id, 3)));
@@ -17,7 +17,7 @@ public abstract class MoodTests(TestAppHost host) : TestBase(host)
     [Fact]
     public async Task GetOwnReturnsStoredLevel()
     {
-        var owner = Session.New();
+        var owner = await NewUser();
         var room = await CreateRoom(owner);
         Assert.Null(await Mood.GetOwn(owner, room.Id));
         await Call(new Mood_Set(owner, room.Id, 4));
@@ -29,8 +29,8 @@ public abstract class MoodTests(TestAppHost host) : TestBase(host)
     [Fact]
     public async Task GetSummaryCountsOnlyPresentSessions()
     {
-        var owner = Session.New();
-        var other = Session.New();
+        var owner = await NewUser();
+        var other = await NewUser();
         var room = await CreateRoom(owner);
         await Call(new Mood_Set(owner, room.Id, 3));
         await Call(new Mood_Set(other, room.Id, 5));

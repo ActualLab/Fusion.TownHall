@@ -1,8 +1,8 @@
 namespace TownHall.Host.Services;
 
 /// <summary>
-/// Generates "Adjective Animal" display names; deterministic for a given session id,
-/// so unnamed sessions keep a stable name without a DB record.
+/// Generates "Adjective Animal" display names; deterministic for a given seed string,
+/// used to give a freshly created user a friendly default name.
 /// </summary>
 public static class NameGenerator
 {
@@ -21,9 +21,9 @@ public static class NameGenerator
         "Gopher", "Heron", "Iguana", "Kiwi", "Lynx", "Mongoose", "Newt", "Osprey",
     ];
 
-    public static string New(string sessionId)
+    public static string New(string seed)
     {
-        var hash = sessionId.GetXxHash3L();
+        var hash = seed.GetXxHash3L();
         var adjective = Adjectives[(int)(hash % (ulong)Adjectives.Length)];
         var animal = Animals[(int)((hash >> 16) % (ulong)Animals.Length)];
         return $"{adjective} {animal}";

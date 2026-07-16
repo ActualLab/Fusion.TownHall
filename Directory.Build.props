@@ -50,6 +50,7 @@
     <Using Include="ActualLab.CommandR.Commands" />
     <Using Include="ActualLab.Fusion" />
     <Using Include="ActualLab.Fusion.Operations" />
+    <Using Include="ActualLab.Rpc" />
     <Using Include="ActualLab.DependencyInjection" />
     <Using Include="ActualLab.Reflection" />
     <Using Include="ActualLab.Serialization" />

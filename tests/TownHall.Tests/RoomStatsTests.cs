@@ -5,8 +5,8 @@ public abstract class RoomStatsTests(TestAppHost host) : TestBase(host)
     [Fact]
     public async Task GetStatsCounts()
     {
-        var owner = Session.New();
-        var voter = Session.New();
+        var owner = await NewUser();
+        var voter = await NewUser();
         var room = await CreateRoom(owner);
         var q1 = await Call(new Questions_Post(owner, room.Id, "Open?"));
         var q2 = await Call(new Questions_Post(owner, room.Id, "Resolved?"));
@@ -20,8 +20,8 @@ public abstract class RoomStatsTests(TestAppHost host) : TestBase(host)
     [Fact]
     public async Task ListTrendingReflectsRecentVotesAndExcludesResolved()
     {
-        var owner = Session.New();
-        var voter = Session.New();
+        var owner = await NewUser();
+        var voter = await NewUser();
         var room = await CreateRoom(owner);
         var q1 = await Call(new Questions_Post(owner, room.Id, "Trending?"));
         var q2 = await Call(new Questions_Post(owner, room.Id, "Gone?"));

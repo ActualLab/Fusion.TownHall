@@ -27,17 +27,39 @@ public class DbRoom
             : RoomStatus.Live;
 }
 
-public class DbRoomOwner // PK: (RoomId, SessionId)
+public class DbRoomOwner // PK: (RoomId, UserId)
 {
     public string RoomId { get; set; } = "";
-    public string SessionId { get; set; } = "";
+    public string UserId { get; set; } = "";
 }
 
-public class DbParticipant // Key = public participant id (never the secret session id)
+// A signed-in user. Only authenticated users get a row here - guests are never stored.
+public class DbUser // Key = public user id ("u-…")
 {
     [Key]
     public string Id { get; set; } = "";
     public string Name { get; set; } = "";
+    public DateTime CreatedAt { get; set; }
+}
+
+// A WebAuthn/passkey credential bound to a user.
+public class DbPasskeyCredential // Key = base64url credential id
+{
+    [Key]
+    public string CredentialId { get; set; } = "";
+    public string UserId { get; set; } = "";
+    public byte[] PublicKey { get; set; } = [];
+    public long SignCount { get; set; }
+    public byte[] UserHandle { get; set; } = [];
+    public DateTime CreatedAt { get; set; }
+}
+
+// Links a Fusion session to a signed-in user; absence of a row means the session is a guest.
+public class DbSessionUser // Key = secret session id
+{
+    [Key]
+    public string SessionId { get; set; } = "";
+    public string UserId { get; set; } = "";
 }
 
 // The single-column Key enables batched lookups via IDbEntityResolver<string, DbQuestion>
@@ -47,7 +69,7 @@ public class DbQuestion // Key = "{RoomId}/{Index}"; ResolvedAt != null means Re
     public string Key { get; set; } = "";
     public string RoomId { get; set; } = "";
     public long Index { get; set; }
-    public string AuthorId { get; set; } = "";
+    public string AuthorId { get; set; } = "";  // A public user id ("u-…")
     public string Text { get; set; } = "";
     public DateTime PostedAt { get; set; }
     public DateTime? ResolvedAt { get; set; }
@@ -57,17 +79,17 @@ public class DbQuestion // Key = "{RoomId}/{Index}"; ResolvedAt != null means Re
         => $"{roomId}/{index}";
 }
 
-public class DbVote // PK: (RoomId, QuestionIndex, SessionId)
+public class DbVote // PK: (RoomId, QuestionIndex, UserId)
 {
     public string RoomId { get; set; } = "";
     public long QuestionIndex { get; set; }
-    public string SessionId { get; set; } = "";
+    public string UserId { get; set; } = "";
     public DateTime CastAt { get; set; }
 }
 
-public class DbMood // PK: (RoomId, SessionId); Level is 1..5
+public class DbMood // PK: (RoomId, UserId); Level is 1..5
 {
     public string RoomId { get; set; } = "";
-    public string SessionId { get; set; } = "";
+    public string UserId { get; set; } = "";
     public int Level { get; set; }
 }

@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>TownHall</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TownHall.Abstractions\TownHall.Abstractions.csproj" />
+  </ItemGroup>
+
+  <!-- Fusion packages -->
+  <ItemGroup>
+    <PackageReference Include="ActualLab.Fusion" />
+  </ItemGroup>
+
+  <!-- Source generators -->
+  <ItemGroup>
+    <PackageReference Include="ActualLab.Generators" PrivateAssets="all" />
+  </ItemGroup>
+
+</Project>

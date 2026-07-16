@@ -4,17 +4,22 @@
 
 <MudPaper Class="pa-3 mb-4" Elevation="1">
     <MudText Typo="Typo.subtitle1" Class="mb-2">Your question</MudText>
-    <MudTextField @bind-Value="_text" Immediate="true" Lines="2" MaxLength="500" Counter="500"
-                  Placeholder="Type your question here" HelperText="Press Enter to post"
-                  Variant="Variant.Outlined" Disabled="@(!IsLive)"
-                  OnKeyUp="OnKeyUp" />
-    <MudStack Row="true" Class="mt-2">
-        <MudSpacer />
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
-                   Disabled="@(!IsLive || _text.Trim().Length == 0)" OnClick="ConfirmAndPost">
-            Post
-        </MudButton>
-    </MudStack>
+    @if (!IsSignedIn) {
+        <MudAlert Severity="Severity.Info" Dense="true">Sign in with a passkey to post a question.</MudAlert>
+    }
+    else {
+        <MudTextField @bind-Value="_text" Immediate="true" Lines="2" MaxLength="500" Counter="500"
+                      Placeholder="Type your question here" HelperText="Press Enter to post"
+                      Variant="Variant.Outlined" Disabled="@(!IsLive)"
+                      OnKeyUp="OnKeyUp" />
+        <MudStack Row="true" Class="mt-2">
+            <MudSpacer />
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                       Disabled="@(!IsLive || _text.Trim().Length == 0)" OnClick="ConfirmAndPost">
+                Post
+            </MudButton>
+        </MudStack>
+    }
 </MudPaper>
 
 @code {
@@ -22,6 +27,7 @@
 
     [Parameter, EditorRequired] public string RoomId { get; set; } = "";
     [Parameter] public bool IsLive { get; set; }
+    [Parameter] public bool IsSignedIn { get; set; }
 
     // On key UP, so the Enter that opens the dialog can't also trigger its default button
     private Task OnKeyUp(KeyboardEventArgs e)

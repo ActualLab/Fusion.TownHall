@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\TownHall.Contracts\TownHall.Contracts.csproj" />
+    <ProjectReference Include="..\TownHall.Abstractions\TownHall.Abstractions.csproj" />
   </ItemGroup>
 
   <!-- Fusion packages -->

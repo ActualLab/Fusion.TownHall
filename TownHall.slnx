@@ -1,7 +1,9 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/TownHall.Abstractions/TownHall.Abstractions.csproj" />
+    <Project Path="src/TownHall.Api/TownHall.Api.csproj" />
     <Project Path="src/TownHall.AppHost/TownHall.AppHost.csproj" />
-    <Project Path="src/TownHall.Contracts/TownHall.Contracts.csproj" />
+    <Project Path="src/TownHall.Backend/TownHall.Backend.csproj" />
     <Project Path="src/TownHall.Db/TownHall.Db.csproj" />
     <Project Path="src/TownHall.Host/TownHall.Host.csproj" />
     <Project Path="src/TownHall.ServiceDefaults/TownHall.ServiceDefaults.csproj" />

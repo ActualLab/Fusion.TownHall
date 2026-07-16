@@ -5,7 +5,7 @@ public abstract class RoomsTests(TestAppHost host) : TestBase(host)
     [Fact]
     public async Task OnCreateReturnsPausedRoomWithClampedDuration()
     {
-        var session = Session.New();
+        var session = await NewUser();
         var room = await Call(new Rooms_Create(session, "  Board Q&A  ", TimeSpan.FromSeconds(1)));
         Assert.Equal(RoomStatus.Paused, room.Status);
         Assert.Equal("Board Q&A", room.Title);
@@ -17,8 +17,8 @@ public abstract class RoomsTests(TestAppHost host) : TestBase(host)
     [Fact]
     public async Task OwnershipIsPerSession()
     {
-        var owner = Session.New();
-        var other = Session.New();
+        var owner = await NewUser();
+        var other = await NewUser();
         var room = await Call(new Rooms_Create(owner, "Ownership", TimeSpan.FromHours(1)));
         Assert.True(await Rooms.IsOwner(owner, room.Id));
         Assert.NotNull(await Rooms.GetOwnerToken(owner, room.Id));
@@ -29,8 +29,8 @@ public abstract class RoomsTests(TestAppHost host) : TestBase(host)
     [Fact]
     public async Task OnClaimOwnershipValidatesToken()
     {
-        var owner = Session.New();
-        var claimer = Session.New();
+        var owner = await NewUser();
+        var claimer = await NewUser();
         var room = await Call(new Rooms_Create(owner, "Claim", TimeSpan.FromHours(1)));
         var token = await Rooms.GetOwnerToken(owner, room.Id);
         await Assert.ThrowsAsync<UnauthorizedAccessException>(
@@ -42,8 +42,8 @@ public abstract class RoomsTests(TestAppHost host) : TestBase(host)
     [Fact]
     public async Task OnSetIsPrivateHidesRoomFromList()
     {
-        var owner = Session.New();
-        var other = Session.New();
+        var owner = await NewUser();
+        var other = await NewUser();
         var room = await Call(new Rooms_Create(owner, "Private", TimeSpan.FromHours(1), IsPrivate: true));
         Assert.True(room.IsPrivate);
         Assert.DoesNotContain(room.Id, await Rooms.ListRooms(owner, 1000));
@@ -59,8 +59,8 @@ public abstract class RoomsTests(TestAppHost host) : TestBase(host)
     [Fact]
     public async Task OnSetTitleRenamesRoom()
     {
-        var owner = Session.New();
-        var other = Session.New();
+        var owner = await NewUser();
+        var other = await NewUser();
         var room = await Call(new Rooms_Create(owner, "Old title", TimeSpan.FromHours(1)));
         await Assert.ThrowsAsync<UnauthorizedAccessException>(
             () => Call(new Rooms_SetTitle(other, room.Id, "Hijacked")));
@@ -73,7 +73,7 @@ public abstract class RoomsTests(TestAppHost host) : TestBase(host)
     [Fact]
     public async Task OnAdjustDurationShiftsAndClampsEndsAt()
     {
-        var owner = Session.New();
+        var owner = await NewUser();
         var room = await Call(new Rooms_Create(owner, "Duration", TimeSpan.FromHours(1)));
         await Call(new Rooms_AdjustDuration(owner, room.Id, TimeSpan.FromMinutes(5)));
         var extended = await ReadWhen(() => Rooms.Get(owner, room.Id),
@@ -88,7 +88,7 @@ public abstract class RoomsTests(TestAppHost host) : TestBase(host)
     [Fact]
     public async Task OnAdjustDurationResurrectsJustEndedRoom()
     {
-        var owner = Session.New();
+        var owner = await NewUser();
         var room = await Call(new Rooms_Create(owner, "Grace", TimeSpan.FromHours(1)));
         await Call(new Rooms_SetLive(owner, room.Id, true)); // Only a running hall can end
         await Call(new Rooms_AdjustDuration(owner, room.Id, TimeSpan.FromHours(-2)));
@@ -105,8 +105,8 @@ public abstract class RoomsTests(TestAppHost host) : TestBase(host)
     [Fact]
     public async Task OnSetLiveRequiresOwner()
     {
-        var owner = Session.New();
-        var other = Session.New();
+        var owner = await NewUser();
+        var other = await NewUser();
         var room = await Call(new Rooms_Create(owner, "Live", TimeSpan.FromHours(1)));
         await Assert.ThrowsAsync<UnauthorizedAccessException>(
             () => Call(new Rooms_SetLive(other, room.Id, true)));
@@ -118,7 +118,7 @@ public abstract class RoomsTests(TestAppHost host) : TestBase(host)
     [Fact]
     public async Task PauseFreezesTheTimerAndResumeShiftsEndsAt()
     {
-        var owner = Session.New();
+        var owner = await NewUser();
         // Created Paused (not started): the timer is frozen at the full duration
         var room = await Call(new Rooms_Create(owner, "Timer", TimeSpan.FromHours(1)));
         Assert.Equal(RoomStatus.Paused, room.Status);
@@ -142,7 +142,7 @@ public abstract class RoomsTests(TestAppHost host) : TestBase(host)
     [Fact]
     public async Task OnCreateStoresLinkAndSingleParagraphDescription()
     {
-        var owner = Session.New();
+        var owner = await NewUser();
         var room = await Call(new Rooms_Create(owner, "Event", TimeSpan.FromHours(1),
             Link: " https://zoom.us/j/123 ", Description: "  Line one\n\n  line two  "));
         Assert.Equal("https://zoom.us/j/123", room.Link);
@@ -155,8 +155,8 @@ public abstract class RoomsTests(TestAppHost host) : TestBase(host)
     [Fact]
     public async Task TitleLinkAndDescriptionEditableAfterEnded()
     {
-        var owner = Session.New();
-        var other = Session.New();
+        var owner = await NewUser();
+        var other = await NewUser();
         var room = await Call(new Rooms_Create(owner, "Editable", TimeSpan.FromHours(1)));
         await Call(new Rooms_SetLive(owner, room.Id, true)); // Only a running hall can end
         await Call(new Rooms_AdjustDuration(owner, room.Id, TimeSpan.FromHours(-2)));

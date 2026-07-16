@@ -70,7 +70,7 @@ public sealed class TestAppHost : IAsyncLifetime
         services.AddDbContextServices<AppDbContext>(db => {
             db.AddOperations(operations => operations.AddNpgsqlOperationLogWatcher());
             db.AddEntityResolver<string, DbRoom>();
-            db.AddEntityResolver<string, DbParticipant>();
+            db.AddEntityResolver<string, DbUser>();
             db.AddEntityResolver<string, DbQuestion>();
             // ReSharper disable once VariableHidesOuterVariable
             db.Services.AddTransientDbContextFactory<AppDbContext>((c, db) => {
@@ -84,7 +84,15 @@ public sealed class TestAppHost : IAsyncLifetime
         var fusion = services.AddFusion(RpcServiceMode.Server, true);
         fusion.AddWebServer();
         fusion.AddOperationReprocessor();
-        fusion.AddServer<IParticipants, ParticipantsService>();
+        // Backend (local); passkey/IAuth is omitted here - tests sign in via the backend directly.
+        fusion.AddComputeService<IUsersBackend, UsersBackend>();
+        fusion.AddComputeService<IRoomsBackend, RoomsBackend>();
+        fusion.AddComputeService<IQuestionsBackend, QuestionsBackend>();
+        fusion.AddComputeService<IRoomStatsBackend, RoomStatsBackend>();
+        fusion.AddComputeService<IPresenceBackend, PresenceBackend>();
+        fusion.AddComputeService<IMoodBackend, MoodBackend>();
+        // Frontend (RPC)
+        fusion.AddServer<IUsers, UsersService>();
         fusion.AddServer<IRooms, RoomsService>();
         fusion.AddServer<IQuestions, QuestionsService>();
         fusion.AddServer<IRoomStats, RoomStatsService>();
@@ -99,7 +107,7 @@ public sealed class TestAppHost : IAsyncLifetime
         services.AddLogging();
         var fusion = services.AddFusion();
         fusion.Rpc.AddWebSocketClient(BaseUrl);
-        fusion.AddClient<IParticipants>();
+        fusion.AddClient<IUsers>();
         fusion.AddClient<IRooms>();
         fusion.AddClient<IQuestions>();
         fusion.AddClient<IRoomStats>();

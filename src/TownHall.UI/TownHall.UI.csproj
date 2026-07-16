@@ -17,19 +17,21 @@
     <WasmStripILAfterAOT>true</WasmStripILAfterAOT>
   </PropertyGroup>
 
-  <!-- Extra trimming roots. TownHall.Contracts + MessagePack must be preserved whole:
-       the contracts use reflection-based [MessagePackObject(true)] serialization, and full
-       trimming otherwise strips their members, crashing the WASM client on boot. -->
+  <!-- Extra trimming roots. TownHall.Abstractions + TownHall.Api + MessagePack must be preserved
+       whole: the models/commands use reflection-based [MessagePackObject(true)] serialization, and
+       full trimming otherwise strips their members, crashing the WASM client on boot. -->
   <ItemGroup>
     <TrimmerRootAssembly Include="TownHall.UI" />
-    <TrimmerRootAssembly Include="TownHall.Contracts" />
+    <TrimmerRootAssembly Include="TownHall.Abstractions" />
+    <TrimmerRootAssembly Include="TownHall.Api" />
     <TrimmerRootAssembly Include="MudBlazor" />
     <TrimmerRootAssembly Include="MessagePack" />
     <TrimmerRootAssembly Include="MessagePack.Annotations" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\TownHall.Contracts\TownHall.Contracts.csproj" />
+    <ProjectReference Include="..\TownHall.Abstractions\TownHall.Abstractions.csproj" />
+    <ProjectReference Include="..\TownHall.Api\TownHall.Api.csproj" />
   </ItemGroup>
 
   <!-- Fusion packages -->

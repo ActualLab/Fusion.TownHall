@@ -29,4 +29,4 @@ public interface IUsers : IComputeService
 public sealed record Users_SetName(
     Session Session,
     string Name
-) : ISessionCommand<Unit>;
+) : ISessionCommand<Unit>, IDelegatingCommand;

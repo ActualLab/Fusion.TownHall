@@ -20,9 +20,6 @@ public class MoodService(IServiceProvider services) : IMood
 
     public virtual async Task OnSetMood(Mood_Set command, CancellationToken cancellationToken = default)
     {
-        if (Invalidation.IsActive)
-            return;
-
         var (session, roomId, level) = command;
         var userId = (await Users.GetUserIdBySession(session.Id, cancellationToken).ConfigureAwait(false)).RequireSignedIn();
         await Commander.Call(new MoodBackend_Set(roomId, userId, level), true, cancellationToken).ConfigureAwait(false);

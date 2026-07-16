@@ -19,4 +19,4 @@ public interface IPresence : IComputeService
 public sealed record Presence_Watch(
     Session Session,
     string RoomId
-) : ISessionCommand<Unit>;
+) : ISessionCommand<Unit>, IDelegatingCommand;

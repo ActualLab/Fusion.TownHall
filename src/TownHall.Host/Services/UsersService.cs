@@ -25,9 +25,6 @@ public class UsersService(IServiceProvider services) : IUsers
 
     public virtual async Task OnSetName(Users_SetName command, CancellationToken cancellationToken = default)
     {
-        if (Invalidation.IsActive)
-            return;
-
         var (session, name) = command;
         var userId = (await GetOwnUserId(session, cancellationToken).ConfigureAwait(false)).RequireSignedIn();
         await Commander.Call(new UsersBackend_SetName(userId, name), true, cancellationToken).ConfigureAwait(false);

@@ -52,9 +52,6 @@ public class AuthService(IServiceProvider services) : IAuth
 
     public virtual async Task<UserFull> OnRegisterPasskey(Auth_RegisterPasskey command, CancellationToken cancellationToken = default)
     {
-        if (Invalidation.IsActive)
-            return null!;
-
         var (session, attestationJson) = command;
         var response = JsonSerializer.Deserialize<AuthenticatorAttestationRawResponse>(attestationJson)
             ?? throw new InvalidOperationException("Invalid passkey response.");
@@ -80,9 +77,6 @@ public class AuthService(IServiceProvider services) : IAuth
 
     public virtual async Task<UserFull> OnSignIn(Auth_SignIn command, CancellationToken cancellationToken = default)
     {
-        if (Invalidation.IsActive)
-            return null!;
-
         var (session, assertionJson) = command;
         var response = JsonSerializer.Deserialize<AuthenticatorAssertionRawResponse>(assertionJson)
             ?? throw new InvalidOperationException("Invalid passkey response.");
@@ -113,9 +107,6 @@ public class AuthService(IServiceProvider services) : IAuth
 
     public virtual async Task OnSignOut(Auth_SignOut command, CancellationToken cancellationToken = default)
     {
-        if (Invalidation.IsActive)
-            return;
-
         await Commander.Call(new UsersBackend_UnlinkSession(command.Session.Id), true, cancellationToken).ConfigureAwait(false);
     }
 

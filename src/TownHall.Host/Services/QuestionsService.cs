@@ -35,9 +35,6 @@ public class QuestionsService(IServiceProvider services) : IQuestions
 
     public virtual async Task<Question> OnPost(Questions_Post command, CancellationToken cancellationToken = default)
     {
-        if (Invalidation.IsActive)
-            return null!;
-
         var (session, roomId, text, anonymous) = command;
         var userId = (await GetOwnUserId(session, cancellationToken).ConfigureAwait(false)).RequireSignedIn();
         return await Commander.Call(new QuestionsBackend_Post(roomId, userId, text, anonymous), true, cancellationToken).ConfigureAwait(false);
@@ -45,9 +42,6 @@ public class QuestionsService(IServiceProvider services) : IQuestions
 
     public virtual async Task OnVote(Questions_Vote command, CancellationToken cancellationToken = default)
     {
-        if (Invalidation.IsActive)
-            return;
-
         var (session, roomId, index, value) = command;
         var userId = (await GetOwnUserId(session, cancellationToken).ConfigureAwait(false)).RequireSignedIn();
         await Commander.Call(new QuestionsBackend_Vote(roomId, index, userId, value), true, cancellationToken).ConfigureAwait(false);
@@ -55,9 +49,6 @@ public class QuestionsService(IServiceProvider services) : IQuestions
 
     public virtual async Task OnResolve(Questions_Resolve command, CancellationToken cancellationToken = default)
     {
-        if (Invalidation.IsActive)
-            return;
-
         var (session, roomId, index, note) = command;
         await RequireOwner(session, roomId, cancellationToken).ConfigureAwait(false);
         await Commander.Call(new QuestionsBackend_Resolve(roomId, index, note), true, cancellationToken).ConfigureAwait(false);
@@ -65,9 +56,6 @@ public class QuestionsService(IServiceProvider services) : IQuestions
 
     public virtual async Task OnDelete(Questions_Delete command, CancellationToken cancellationToken = default)
     {
-        if (Invalidation.IsActive)
-            return;
-
         var (session, roomId, index) = command;
         await RequireOwner(session, roomId, cancellationToken).ConfigureAwait(false);
         await Commander.Call(new QuestionsBackend_Delete(roomId, index), true, cancellationToken).ConfigureAwait(false);

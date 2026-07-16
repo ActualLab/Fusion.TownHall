@@ -23,4 +23,4 @@ public sealed record Mood_Set(
     Session Session,
     string RoomId,
     int Level
-) : ISessionCommand<Unit>;
+) : ISessionCommand<Unit>, IDelegatingCommand;

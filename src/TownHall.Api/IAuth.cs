@@ -34,17 +34,17 @@ public interface IAuth : IComputeService
 public sealed record Auth_RegisterPasskey(
     Session Session,
     string AttestationJson
-) : ISessionCommand<UserFull>;
+) : ISessionCommand<UserFull>, IDelegatingCommand;
 
 [MessagePackObject(true)]
 // ReSharper disable once InconsistentNaming
 public sealed record Auth_SignIn(
     Session Session,
     string AssertionJson
-) : ISessionCommand<UserFull>;
+) : ISessionCommand<UserFull>, IDelegatingCommand;
 
 [MessagePackObject(true)]
 // ReSharper disable once InconsistentNaming
 public sealed record Auth_SignOut(
     Session Session
-) : ISessionCommand<Unit>;
+) : ISessionCommand<Unit>, IDelegatingCommand;

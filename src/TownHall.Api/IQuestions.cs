@@ -60,7 +60,7 @@ public sealed record Questions_Post(
     string RoomId,
     string Text,
     bool Anonymous = false
-) : ISessionCommand<Question>;
+) : ISessionCommand<Question>, IDelegatingCommand;
 
 [MessagePackObject(true)]
 // ReSharper disable once InconsistentNaming
@@ -69,7 +69,7 @@ public sealed record Questions_Vote(
     string RoomId,
     long QuestionIndex,
     bool Value
-) : ISessionCommand<Unit>;
+) : ISessionCommand<Unit>, IDelegatingCommand;
 
 [MessagePackObject(true)]
 // ReSharper disable once InconsistentNaming
@@ -78,7 +78,7 @@ public sealed record Questions_Resolve(
     string RoomId,
     long QuestionIndex,
     string Note
-) : ISessionCommand<Unit>;
+) : ISessionCommand<Unit>, IDelegatingCommand;
 
 [MessagePackObject(true)]
 // ReSharper disable once InconsistentNaming
@@ -86,4 +86,4 @@ public sealed record Questions_Delete(
     Session Session,
     string RoomId,
     long QuestionIndex
-) : ISessionCommand<Unit>;
+) : ISessionCommand<Unit>, IDelegatingCommand;

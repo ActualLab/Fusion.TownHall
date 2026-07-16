@@ -68,7 +68,7 @@ public sealed record Rooms_Create(
     bool IsPrivate = false,
     string Link = "",
     string Description = ""
-) : ISessionCommand<Room>;
+) : ISessionCommand<Room>, IDelegatingCommand;
 
 [MessagePackObject(true)]
 // ReSharper disable once InconsistentNaming
@@ -76,7 +76,7 @@ public sealed record Rooms_ClaimOwnership(
     Session Session,
     string RoomId,
     string OwnerToken
-) : ISessionCommand<Unit>;
+) : ISessionCommand<Unit>, IDelegatingCommand;
 
 [MessagePackObject(true)]
 // ReSharper disable once InconsistentNaming
@@ -84,7 +84,7 @@ public sealed record Rooms_SetLive(
     Session Session,
     string RoomId,
     bool Live
-) : ISessionCommand<Unit>;
+) : ISessionCommand<Unit>, IDelegatingCommand;
 
 [MessagePackObject(true)]
 // ReSharper disable once InconsistentNaming
@@ -92,7 +92,7 @@ public sealed record Rooms_SetIsPrivate(
     Session Session,
     string RoomId,
     bool IsPrivate
-) : ISessionCommand<Unit>;
+) : ISessionCommand<Unit>, IDelegatingCommand;
 
 [MessagePackObject(true)]
 // ReSharper disable once InconsistentNaming
@@ -100,7 +100,7 @@ public sealed record Rooms_SetTitle(
     Session Session,
     string RoomId,
     string Title
-) : ISessionCommand<Unit>;
+) : ISessionCommand<Unit>, IDelegatingCommand;
 
 [MessagePackObject(true)]
 // ReSharper disable once InconsistentNaming
@@ -108,7 +108,7 @@ public sealed record Rooms_SetLink(
     Session Session,
     string RoomId,
     string Link
-) : ISessionCommand<Unit>;
+) : ISessionCommand<Unit>, IDelegatingCommand;
 
 [MessagePackObject(true)]
 // ReSharper disable once InconsistentNaming
@@ -116,7 +116,7 @@ public sealed record Rooms_SetDescription(
     Session Session,
     string RoomId,
     string Description
-) : ISessionCommand<Unit>;
+) : ISessionCommand<Unit>, IDelegatingCommand;
 
 [MessagePackObject(true)]
 // ReSharper disable once InconsistentNaming
@@ -124,4 +124,4 @@ public sealed record Rooms_AdjustDuration(
     Session Session,
     string RoomId,
     TimeSpan Delta
-) : ISessionCommand<Unit>;
+) : ISessionCommand<Unit>, IDelegatingCommand;

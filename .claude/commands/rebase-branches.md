@@ -46,6 +46,9 @@ which must equal `main`". The shared base for this repo:
 - `AGENTS-Source.md` (and `AGENTS-Suffix.md` if committed) — their source
 - `CODING_STYLE.md` — project coding conventions
 - `.claude/commands/` — shared slash commands (including this one)
+- `LICENSE` — the project license (same on every branch)
+- `deploy/` — deployment infrastructure (compose, systemd, scripts); the app is
+  deployed the same way regardless of framework
 - `docs/comparisons/` — the per-branch comparison reports written by
   `/compare-branches` (each branch carries the whole set)
 - `docs/ai-sessions/` — **all** AI conversation logs (the top-level `main`/Fusion
@@ -65,7 +68,7 @@ branch-agnostic; never add a file that legitimately differs per stack.
 Define the set once so the steps below can reuse it:
 
 ```bash
-SHARED_BASE=(AGENTS.md CLAUDE.md AGENTS-Source.md AGENTS-Suffix.md CODING_STYLE.md .claude/commands docs/comparisons docs/ai-sessions)
+SHARED_BASE=(AGENTS.md CLAUDE.md AGENTS-Source.md AGENTS-Suffix.md CODING_STYLE.md LICENSE deploy .claude/commands docs/comparisons docs/ai-sessions)
 # Keep only the paths that actually exist on main
 SHARED_BASE=($(for p in "${SHARED_BASE[@]}"; do git cat-file -e "main:$p" 2>/dev/null && echo "$p"; done))
 ```

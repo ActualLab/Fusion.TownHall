@@ -12,7 +12,9 @@
                       Placeholder="Type your question here" HelperText="Press Enter to post"
                       Variant="Variant.Outlined" Disabled="@(!IsLive)"
                       OnKeyUp="OnKeyUp" />
-        <MudStack Row="true" Class="mt-2">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Class="mt-2">
+            <MudCheckBox @bind-Value="_anonymous" Dense="true" Color="Color.Primary" Size="Size.Small"
+                         Label="@(AnonName.Length > 0 ? $"Post anonymously as {AnonName}" : "Post anonymously")" />
             <MudSpacer />
             <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
                        Disabled="@(!IsLive || _text.Trim().Length == 0)" OnClick="ConfirmAndPost">
@@ -24,10 +26,13 @@
 
 @code {
     private string _text = "";
+    private bool _anonymous;
 
     [Parameter, EditorRequired] public string RoomId { get; set; } = "";
     [Parameter] public bool IsLive { get; set; }
     [Parameter] public bool IsSignedIn { get; set; }
+    // The poster's pseudonym for this room, shown next to the "Post anonymously" checkbox.
+    [Parameter] public string AnonName { get; set; } = "";
 
     // On key UP, so the Enter that opens the dialog can't also trigger its default button
     private Task OnKeyUp(KeyboardEventArgs e)
@@ -46,7 +51,7 @@
         if (isConfirmed != true)
             return;
 
-        var result = await UICommander.Run(new Questions_Post(Session, RoomId, text));
+        var result = await UICommander.Run(new Questions_Post(Session, RoomId, text, _anonymous));
         if (!result.HasError)
             _text = "";
     }

@@ -38,9 +38,9 @@ public class QuestionsService(IServiceProvider services) : IQuestions
         if (Invalidation.IsActive)
             return null!;
 
-        var (session, roomId, text) = command;
+        var (session, roomId, text, anonymous) = command;
         var userId = (await GetOwnUserId(session, cancellationToken).ConfigureAwait(false)).RequireSignedIn();
-        return await Commander.Call(new QuestionsBackend_Post(roomId, userId, text), true, cancellationToken).ConfigureAwait(false);
+        return await Commander.Call(new QuestionsBackend_Post(roomId, userId, text, anonymous), true, cancellationToken).ConfigureAwait(false);
     }
 
     public virtual async Task OnVote(Questions_Vote command, CancellationToken cancellationToken = default)

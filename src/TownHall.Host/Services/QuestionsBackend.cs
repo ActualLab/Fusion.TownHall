@@ -107,7 +107,7 @@ public class QuestionsBackend(IServiceProvider services) : DbServiceBase<AppDbCo
 
     public virtual async Task<Question> OnPost(QuestionsBackend_Post command, CancellationToken cancellationToken = default)
     {
-        var (roomId, authorUserId, text) = command;
+        var (roomId, authorUserId, text, anonymous) = command;
         var context = CommandContext.GetCurrent();
         if (Invalidation.IsActive) {
             var index = context.Operation.Items.Get<long>("Index");
@@ -121,6 +121,8 @@ public class QuestionsBackend(IServiceProvider services) : DbServiceBase<AppDbCo
         if (text.Length is < 1 or > 500)
             throw new ArgumentException("Question text must be 1..500 characters long.");
 
+        // Anonymous posts are attributed to a per-(user, room) pseudonym; the real user id isn't stored
+        var authorId = anonymous ? AnonId.Of(authorUserId, roomId) : authorUserId;
         var dbContext = await DbHub.CreateOperationDbContext(cancellationToken).ConfigureAwait(false);
         await using var _1 = dbContext.ConfigureAwait(false);
 
@@ -134,14 +136,14 @@ public class QuestionsBackend(IServiceProvider services) : DbServiceBase<AppDbCo
             Key = DbQuestion.ComposeKey(roomId, questionIndex),
             RoomId = roomId,
             Index = questionIndex,
-            AuthorId = authorUserId,
+            AuthorId = authorId,
             Text = text,
             PostedAt = now,
         };
         dbContext.Add(dbQuestion);
         await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         context.Operation.Items.Set("Index", dbQuestion.Index);
-        return new Question(roomId, dbQuestion.Index, authorUserId, text, now);
+        return new Question(roomId, dbQuestion.Index, authorId, text, now);
     }
 
     public virtual async Task OnVote(QuestionsBackend_Vote command, CancellationToken cancellationToken = default)

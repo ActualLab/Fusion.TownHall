@@ -1,8 +1,8 @@
-namespace TownHall.Host.Services;
+namespace TownHall;
 
 /// <summary>
-/// Generates "Adjective Animal" display names; deterministic for a given seed string,
-/// used to give a freshly created user a friendly default name.
+/// Generates "Adjective Animal" display names; deterministic for a given seed string. Used for a
+/// new user's default name and for the per-room anonymous pseudonym (see <see cref="AnonId"/>).
 /// </summary>
 public static class NameGenerator
 {

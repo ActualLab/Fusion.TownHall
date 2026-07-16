@@ -17,9 +17,11 @@ public class AuthService(IServiceProvider services) : IAuth
     private IUsersBackend Backend => field ??= services.GetRequiredService<IUsersBackend>();
     private ICommander Commander => field ??= services.Commander();
 
-    public Task<string> GetRegistrationOptions(Session session, CancellationToken cancellationToken = default)
+    public Task<string> GetRegistrationOptions(Session session, string name, CancellationToken cancellationToken = default)
     {
-        var name = NameGenerator.New(Guid.NewGuid().ToString("N"));
+        name = name.Trim();
+        if (name.Length is < 1 or > 30)
+            name = NameGenerator.New(Guid.NewGuid().ToString("N"));
         var user = new Fido2User {
             Id = RandomBytes(16),           // the user handle; also stored on the credential
             Name = name,

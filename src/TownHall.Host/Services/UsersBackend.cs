@@ -12,6 +12,10 @@ public class UsersBackend(IServiceProvider services) : DbServiceBase<AppDbContex
 
     public virtual async Task<UserFull?> Get(string userId, CancellationToken cancellationToken = default)
     {
+        // Anonymous authors have no DB row - their name is generated from the (user, room)-derived id.
+        if (AnonId.Is(userId))
+            return new UserFull(userId, NameGenerator.New(userId), default);
+
         var dbUser = await UserResolver.Get(userId, cancellationToken).ConfigureAwait(false);
         return dbUser == null
             ? null

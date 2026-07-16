@@ -92,7 +92,8 @@ else if (room.Status == RoomStatus.Ended) {
 </div>
 <MudGrid>
     <MudItem xs="12" md="8" Class="@($"{(_mobileTab == MobileTab.Questions ? "" : "d-none")} d-md-block")">
-        <QuestionComposer RoomId="@RoomId" IsLive="@(room.Status == RoomStatus.Live)" IsSignedIn="@m.IsSignedIn" />
+        <QuestionComposer RoomId="@RoomId" IsLive="@(room.Status == RoomStatus.Live)"
+                          IsSignedIn="@m.IsSignedIn" AnonName="@m.AnonName" />
         @if (m.Stats.OpenQuestionCount + m.Stats.ResolvedQuestionCount > 0) {
             <MudTabs Elevation="1" Rounded="true" ApplyEffectsToContainer="true">
                 <MudTabPanel Text="@($"Top ({m.Stats.OpenQuestionCount})")">
@@ -143,12 +144,13 @@ else if (room.Status == RoomStatus.Ended) {
         var session = await CircuitHub.SessionResolver.GetSession(cancellationToken);
         var room = await Rooms.Get(session, RoomId, cancellationToken);
         if (room == null)
-            return new Model(null, false, new RoomStats(0, 0, 0, 0), false);
+            return new Model(null, false, new RoomStats(0, 0, 0, 0), false, "");
 
         var isOwner = await Rooms.IsOwner(session, RoomId, cancellationToken);
         var stats = await RoomStats.GetStats(session, RoomId, cancellationToken);
-        var isSignedIn = await Users.GetOwnUserId(session, cancellationToken) != null;
-        return new Model(room, isOwner, stats, isSignedIn);
+        var userId = await Users.GetOwnUserId(session, cancellationToken);
+        var anonName = userId != null ? NameGenerator.New(AnonId.Of(userId, RoomId)) : "";
+        return new Model(room, isOwner, stats, userId != null, anonName);
     }
 
     private static string BuildPageTitle(Room room, RoomStats stats)
@@ -170,5 +172,5 @@ else if (room.Status == RoomStatus.Ended) {
 
     private enum MobileTab { Questions, Mood }
 
-    public sealed record Model(Room? Room, bool IsOwner, RoomStats Stats, bool IsSignedIn);
+    public sealed record Model(Room? Room, bool IsOwner, RoomStats Stats, bool IsSignedIn, string AnonName);
 }

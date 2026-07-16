@@ -7,9 +7,10 @@ namespace TownHall;
 // the session; the command handlers verify the browser's response, then create/link a user.
 public interface IAuth : IComputeService
 {
-    // Builds navigator.credentials.create() options for a brand-new passkey + user. Not a compute
-    // method: each call issues a fresh challenge.
-    Task<string> GetRegistrationOptions(Session session, CancellationToken cancellationToken = default);
+    // Builds navigator.credentials.create() options for a brand-new passkey + user with the given
+    // display name (trimmed 1..30; a random name is used if blank). Not a compute method: each call
+    // issues a fresh challenge.
+    Task<string> GetRegistrationOptions(Session session, string name, CancellationToken cancellationToken = default);
 
     // Builds navigator.credentials.get() options for signing in with an existing (discoverable) passkey.
     Task<string> GetSignInOptions(Session session, CancellationToken cancellationToken = default);

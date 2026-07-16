@@ -30,7 +30,8 @@ public interface IQuestions : IComputeService
     [ComputeMethod]
     Task<bool> HasOwnVote(Session session, string roomId, long index, CancellationToken cancellationToken = default);
 
-    // Requires room Live. Text: trimmed 1..500 chars.
+    // Requires room Live. Text: trimmed 1..500 chars. When Anonymous, the question is attributed to a
+    // per-(user, room) pseudonym instead of the poster's real user (see AnonId).
     [CommandHandler]
     Task<Question> OnPost(Questions_Post command, CancellationToken cancellationToken = default);
 
@@ -57,7 +58,8 @@ public interface IQuestions : IComputeService
 public sealed record Questions_Post(
     Session Session,
     string RoomId,
-    string Text
+    string Text,
+    bool Anonymous = false
 ) : ISessionCommand<Question>;
 
 [MessagePackObject(true)]

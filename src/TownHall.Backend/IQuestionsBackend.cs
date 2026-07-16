@@ -38,7 +38,8 @@ public interface IQuestionsBackend : IComputeService, IBackendService
 public sealed record QuestionsBackend_Post(
     string RoomId,
     string AuthorUserId,
-    string Text
+    string Text,
+    bool Anonymous = false
 ) : ICommand<Question>, IBackendCommand;
 
 [MessagePackObject(true)]

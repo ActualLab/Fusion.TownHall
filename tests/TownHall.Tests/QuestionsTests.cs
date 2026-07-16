@@ -148,6 +148,32 @@ public abstract class QuestionsTests(TestAppHost host) : TestBase(host)
         Assert.False(await Questions.HasOwnVote(voter, room.Id, q.Index));
         await Call(new Questions_Delete(owner, room.Id, q.Index)); // Idempotent
     }
+
+    [Fact]
+    public async Task AnonymousPostUsesPerRoomPseudonym()
+    {
+        var owner = await NewUser();
+        var poster = await NewUser("Real Name");
+        var room = await CreateRoom(owner);
+        var posterId = (await Users.GetOwnUserId(poster))!;
+
+        var pub = await Call(new Questions_Post(poster, room.Id, "Public?"));
+        var anon1 = await Call(new Questions_Post(poster, room.Id, "Secret 1?", Anonymous: true));
+        var anon2 = await Call(new Questions_Post(poster, room.Id, "Secret 2?", Anonymous: true));
+
+        // A public post is attributed to the real user; anonymous posts are not
+        Assert.Equal(posterId, pub.AuthorId);
+        Assert.NotEqual(posterId, anon1.AuthorId);
+        Assert.StartsWith("anon-", anon1.AuthorId);
+        // Same (user, room) -> one stable pseudonym across posts
+        Assert.Equal(anon1.AuthorId, anon2.AuthorId);
+        // The pseudonym resolves to a generated name that isn't the real one
+        var anonName = (await Users.Get(poster, anon1.AuthorId))!.Name;
+        Assert.Matches(@"^\w+ \w+$", anonName);
+        Assert.NotEqual("Real Name", anonName);
+        // The real account name is unaffected
+        Assert.Equal("Real Name", (await Users.Get(poster, posterId))!.Name);
+    }
 }
 
 public sealed class QuestionsServerTests(TestAppHost host) : QuestionsTests(host)

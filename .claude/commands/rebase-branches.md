@@ -83,12 +83,12 @@ to `main` file-by-file before rebasing:
   byte-identical to `main`'s — same wording, same wrapping, same placement.
   Keep only the clauses that describe genuinely framework-specific machinery,
   and never copy Fusion-specific references into a non-Fusion branch.
-- **Names**: read methods use `main`'s exact names; write methods use `main`'s
-  name minus the Fusion `On` prefix (`OnPost` → `Post`, `OnCreate` → `Create`).
-  Command records and their parameters match `main` (`QuestionIndex`, not
-  `Index`). Locals, helpers, test names (also `On`-stripped), and test data
-  match `main`'s counterparts. SignalR hub methods (and client invocation
-  strings) reuse the service method names verbatim.
+- **Names**: API method names are identical to `main`'s — reads and writes use
+  the same plain names on every branch (`Post`, `Create`, `SetLive`, ...; no
+  `On` prefix anywhere, including `main`). Command records and their parameters
+  match `main` (`QuestionIndex`, not `Index`). Locals, helpers, test names, and
+  test data match `main`'s counterparts. SignalR hub methods (and client
+  invocation strings) reuse the service method names verbatim.
 - **Member order**: same order as `main`'s counterpart file; branch-only
   members slot in next to their nearest relatives.
 - **Files**: same file names and layout for same-purpose code; branch-only

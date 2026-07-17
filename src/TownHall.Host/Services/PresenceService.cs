@@ -9,13 +9,13 @@ public class PresenceService(IServiceProvider services) : IPresence
     public virtual Task<int> GetAudienceCount(Session session, string roomId, CancellationToken cancellationToken = default)
         => Backend.GetAudienceCount(roomId, cancellationToken);
 
-    public virtual async Task OnWatch(Presence_Watch command, CancellationToken cancellationToken = default)
+    public virtual async Task Watch(Presence_Watch command, CancellationToken cancellationToken = default)
     {
         var (session, roomId) = command;
         var userId = await Users.GetUserIdBySession(session.Id, cancellationToken).ConfigureAwait(false);
         if (userId == null)
             return; // Guests don't report presence
 
-        await Backend.OnWatch(roomId, userId).ConfigureAwait(false);
+        await Backend.Watch(roomId, userId).ConfigureAwait(false);
     }
 }

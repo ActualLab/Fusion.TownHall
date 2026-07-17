@@ -148,7 +148,7 @@ else if (room.Status == RoomStatus.Ended) {
 
         var isOwner = await Rooms.IsOwner(session, RoomId, cancellationToken);
         var stats = await RoomStats.GetStats(session, RoomId, cancellationToken);
-        var userId = await Users.GetOwnUserId(session, cancellationToken);
+        var userId = (await Users.GetOwn(session, cancellationToken))?.Id;
         var anonName = userId != null ? NameGenerator.New(AnonId.Of(userId, RoomId)) : "";
         return new Model(room, isOwner, stats, userId != null, anonName);
     }

@@ -84,7 +84,7 @@ public class RoomsBackend(IServiceProvider services) : DbServiceBase<AppDbContex
         return dbRoom?.OwnerToken;
     }
 
-    public virtual async Task<Room> OnCreate(RoomsBackend_Create command, CancellationToken cancellationToken = default)
+    public virtual async Task<Room> Create(RoomsBackend_Create command, CancellationToken cancellationToken = default)
     {
         var (ownerUserId, title, duration, isPrivate, link, description) = command;
         var context = CommandContext.GetCurrent();
@@ -132,7 +132,7 @@ public class RoomsBackend(IServiceProvider services) : DbServiceBase<AppDbContex
         return new Room(id, title, link, description, now, endsAt, now, RoomStatus.Paused, isPrivate);
     }
 
-    public virtual async Task OnClaimOwnership(RoomsBackend_ClaimOwnership command, CancellationToken cancellationToken = default)
+    public virtual async Task ClaimOwnership(RoomsBackend_ClaimOwnership command, CancellationToken cancellationToken = default)
     {
         var (roomId, userId, ownerToken) = command;
         if (Invalidation.IsActive) {
@@ -157,7 +157,7 @@ public class RoomsBackend(IServiceProvider services) : DbServiceBase<AppDbContex
         await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    public virtual async Task OnSetLive(RoomsBackend_SetLive command, CancellationToken cancellationToken = default)
+    public virtual async Task SetLive(RoomsBackend_SetLive command, CancellationToken cancellationToken = default)
     {
         var (roomId, live) = command;
         if (Invalidation.IsActive) {
@@ -190,7 +190,7 @@ public class RoomsBackend(IServiceProvider services) : DbServiceBase<AppDbContex
         await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    public virtual async Task OnSetIsPrivate(RoomsBackend_SetIsPrivate command, CancellationToken cancellationToken = default)
+    public virtual async Task SetIsPrivate(RoomsBackend_SetIsPrivate command, CancellationToken cancellationToken = default)
     {
         var (roomId, isPrivate) = command;
         if (Invalidation.IsActive) {
@@ -213,7 +213,7 @@ public class RoomsBackend(IServiceProvider services) : DbServiceBase<AppDbContex
         await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    public virtual async Task OnSetTitle(RoomsBackend_SetTitle command, CancellationToken cancellationToken = default)
+    public virtual async Task SetTitle(RoomsBackend_SetTitle command, CancellationToken cancellationToken = default)
     {
         var (roomId, title) = command;
         if (Invalidation.IsActive) {
@@ -234,7 +234,7 @@ public class RoomsBackend(IServiceProvider services) : DbServiceBase<AppDbContex
         await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    public virtual async Task OnSetLink(RoomsBackend_SetLink command, CancellationToken cancellationToken = default)
+    public virtual async Task SetLink(RoomsBackend_SetLink command, CancellationToken cancellationToken = default)
     {
         var (roomId, link) = command;
         if (Invalidation.IsActive) {
@@ -252,7 +252,7 @@ public class RoomsBackend(IServiceProvider services) : DbServiceBase<AppDbContex
         await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    public virtual async Task OnSetDescription(RoomsBackend_SetDescription command, CancellationToken cancellationToken = default)
+    public virtual async Task SetDescription(RoomsBackend_SetDescription command, CancellationToken cancellationToken = default)
     {
         var (roomId, description) = command;
         if (Invalidation.IsActive) {
@@ -270,7 +270,7 @@ public class RoomsBackend(IServiceProvider services) : DbServiceBase<AppDbContex
         await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    public virtual async Task OnAdjustDuration(RoomsBackend_AdjustDuration command, CancellationToken cancellationToken = default)
+    public virtual async Task AdjustDuration(RoomsBackend_AdjustDuration command, CancellationToken cancellationToken = default)
     {
         var (roomId, delta) = command;
         if (Invalidation.IsActive) {

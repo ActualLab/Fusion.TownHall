@@ -6,9 +6,6 @@ public class UsersService(IServiceProvider services) : IUsers
     private IUsersBackend Backend => field ??= services.GetRequiredService<IUsersBackend>();
     private ICommander Commander => field ??= services.Commander();
 
-    public virtual Task<string?> GetOwnUserId(Session session, CancellationToken cancellationToken = default)
-        => Backend.GetUserIdBySession(session.Id, cancellationToken);
-
     public virtual async Task<UserFull?> GetOwn(Session session, CancellationToken cancellationToken = default)
     {
         var userId = await GetOwnUserId(session, cancellationToken).ConfigureAwait(false);
@@ -23,10 +20,15 @@ public class UsersService(IServiceProvider services) : IUsers
         return user?.ToUser();
     }
 
-    public virtual async Task OnSetName(Users_SetName command, CancellationToken cancellationToken = default)
+    public virtual async Task SetName(Users_SetName command, CancellationToken cancellationToken = default)
     {
         var (session, name) = command;
         var userId = (await GetOwnUserId(session, cancellationToken).ConfigureAwait(false)).RequireSignedIn();
         await Commander.Call(new UsersBackend_SetName(userId, name), true, cancellationToken).ConfigureAwait(false);
     }
+
+    // Private methods
+
+    private Task<string?> GetOwnUserId(Session session, CancellationToken cancellationToken)
+        => Backend.GetUserIdBySession(session.Id, cancellationToken);
 }

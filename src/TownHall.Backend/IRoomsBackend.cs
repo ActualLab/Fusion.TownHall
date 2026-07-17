@@ -17,21 +17,21 @@ public interface IRoomsBackend : IComputeService, IBackendService
     Task<string?> GetOwnerToken(string roomId, CancellationToken cancellationToken = default);
 
     [CommandHandler]
-    Task<Room> OnCreate(RoomsBackend_Create command, CancellationToken cancellationToken = default);
+    Task<Room> Create(RoomsBackend_Create command, CancellationToken cancellationToken = default);
     [CommandHandler]
-    Task OnClaimOwnership(RoomsBackend_ClaimOwnership command, CancellationToken cancellationToken = default);
+    Task ClaimOwnership(RoomsBackend_ClaimOwnership command, CancellationToken cancellationToken = default);
     [CommandHandler]
-    Task OnSetLive(RoomsBackend_SetLive command, CancellationToken cancellationToken = default);
+    Task SetLive(RoomsBackend_SetLive command, CancellationToken cancellationToken = default);
     [CommandHandler]
-    Task OnSetIsPrivate(RoomsBackend_SetIsPrivate command, CancellationToken cancellationToken = default);
+    Task SetIsPrivate(RoomsBackend_SetIsPrivate command, CancellationToken cancellationToken = default);
     [CommandHandler]
-    Task OnSetTitle(RoomsBackend_SetTitle command, CancellationToken cancellationToken = default);
+    Task SetTitle(RoomsBackend_SetTitle command, CancellationToken cancellationToken = default);
     [CommandHandler]
-    Task OnSetLink(RoomsBackend_SetLink command, CancellationToken cancellationToken = default);
+    Task SetLink(RoomsBackend_SetLink command, CancellationToken cancellationToken = default);
     [CommandHandler]
-    Task OnSetDescription(RoomsBackend_SetDescription command, CancellationToken cancellationToken = default);
+    Task SetDescription(RoomsBackend_SetDescription command, CancellationToken cancellationToken = default);
     [CommandHandler]
-    Task OnAdjustDuration(RoomsBackend_AdjustDuration command, CancellationToken cancellationToken = default);
+    Task AdjustDuration(RoomsBackend_AdjustDuration command, CancellationToken cancellationToken = default);
 }
 
 [MessagePackObject(true)]

@@ -24,13 +24,13 @@ public interface IQuestionsBackend : IComputeService, IBackendService
     Task<Unit> PseudoVotes(string roomId, CancellationToken cancellationToken = default);
 
     [CommandHandler]
-    Task<Question> OnPost(QuestionsBackend_Post command, CancellationToken cancellationToken = default);
+    Task<Question> Post(QuestionsBackend_Post command, CancellationToken cancellationToken = default);
     [CommandHandler]
-    Task OnVote(QuestionsBackend_Vote command, CancellationToken cancellationToken = default);
+    Task Vote(QuestionsBackend_Vote command, CancellationToken cancellationToken = default);
     [CommandHandler]
-    Task OnResolve(QuestionsBackend_Resolve command, CancellationToken cancellationToken = default);
+    Task Resolve(QuestionsBackend_Resolve command, CancellationToken cancellationToken = default);
     [CommandHandler]
-    Task OnDelete(QuestionsBackend_Delete command, CancellationToken cancellationToken = default);
+    Task Delete(QuestionsBackend_Delete command, CancellationToken cancellationToken = default);
 }
 
 [MessagePackObject(true)]

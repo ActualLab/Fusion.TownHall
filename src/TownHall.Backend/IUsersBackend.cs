@@ -19,17 +19,17 @@ public interface IUsersBackend : IComputeService, IBackendService
     Task<StoredCredential[]> ListCredentials(string userId, CancellationToken cancellationToken = default);
 
     [CommandHandler]
-    Task<string> OnCreate(UsersBackend_Create command, CancellationToken cancellationToken = default);
+    Task<string> Create(UsersBackend_Create command, CancellationToken cancellationToken = default);
     [CommandHandler]
-    Task OnSetName(UsersBackend_SetName command, CancellationToken cancellationToken = default);
+    Task SetName(UsersBackend_SetName command, CancellationToken cancellationToken = default);
     [CommandHandler]
-    Task OnLinkSession(UsersBackend_LinkSession command, CancellationToken cancellationToken = default);
+    Task LinkSession(UsersBackend_LinkSession command, CancellationToken cancellationToken = default);
     [CommandHandler]
-    Task OnUnlinkSession(UsersBackend_UnlinkSession command, CancellationToken cancellationToken = default);
+    Task UnlinkSession(UsersBackend_UnlinkSession command, CancellationToken cancellationToken = default);
     [CommandHandler]
-    Task OnAddCredential(UsersBackend_AddCredential command, CancellationToken cancellationToken = default);
+    Task AddCredential(UsersBackend_AddCredential command, CancellationToken cancellationToken = default);
     [CommandHandler]
-    Task OnUpdateSignCount(UsersBackend_UpdateSignCount command, CancellationToken cancellationToken = default);
+    Task UpdateSignCount(UsersBackend_UpdateSignCount command, CancellationToken cancellationToken = default);
 }
 
 // A stored passkey credential (backend-only view; carries the public key material).

@@ -91,7 +91,7 @@
         var voteCount = await Questions.GetVoteCount(session, RoomId, Index, cancellationToken);
         var hasOwnVote = await Questions.HasOwnVote(session, RoomId, Index, cancellationToken);
         var resolution = await Questions.GetResolution(session, RoomId, Index, cancellationToken);
-        var isSignedIn = await Users.GetOwnUserId(session, cancellationToken) != null;
+        var isSignedIn = await Users.GetOwn(session, cancellationToken) != null;
         return new Model(question, voteCount, hasOwnVote, resolution, isSignedIn);
     }
 

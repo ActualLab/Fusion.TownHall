@@ -6,7 +6,6 @@ public abstract class UsersTests(TestAppHost host) : TestBase(host)
     public async Task GuestHasNoUser()
     {
         var session = Session.New();
-        Assert.Null(await Users.GetOwnUserId(session));
         Assert.Null(await Users.GetOwn(session));
     }
 
@@ -22,7 +21,7 @@ public abstract class UsersTests(TestAppHost host) : TestBase(host)
     }
 
     [Fact]
-    public async Task OnSetNameChangesName()
+    public async Task SetNameChangesName()
     {
         var session = await NewUser();
         await Call(new Users_SetName(session, "  Alice  "));

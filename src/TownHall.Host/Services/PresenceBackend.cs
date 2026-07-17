@@ -2,7 +2,7 @@ namespace TownHall.Host.Services;
 
 /// <summary>
 /// Tracks per-room presence heartbeats in memory: a user counts as present while its last
-/// <see cref="OnWatch"/> is within <see cref="Ttl"/>. Nothing is ever written to the DB - presence
+/// <see cref="Watch"/> is within <see cref="Ttl"/>. Nothing is ever written to the DB - presence
 /// is host-local, ephemeral state. Only signed-in users are present (the frontend rejects guests).
 /// </summary>
 public class PresenceBackend(IServiceProvider services) : IPresenceBackend
@@ -47,7 +47,7 @@ public class PresenceBackend(IServiceProvider services) : IPresenceBackend
         return Task.FromResult(new PresentUsers([..present.Select(kv => kv.Key.UserId).Order(StringComparer.Ordinal)]));
     }
 
-    public virtual Task OnWatch(string roomId, string userId)
+    public virtual Task Watch(string roomId, string userId)
     {
         var now = Clocks.SystemClock.Now;
         var key = (roomId, userId);

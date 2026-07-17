@@ -114,7 +114,7 @@ else {
     {
         var session = await CircuitHub.SessionResolver.GetSession(cancellationToken);
         var roomIds = await Rooms.ListRooms(session, _limit, cancellationToken);
-        var isSignedIn = await Users.GetOwnUserId(session, cancellationToken) != null;
+        var isSignedIn = await Users.GetOwn(session, cancellationToken) != null;
         return new Model(roomIds, isSignedIn);
     }
 

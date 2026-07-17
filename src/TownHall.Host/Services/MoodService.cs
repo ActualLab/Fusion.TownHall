@@ -18,7 +18,7 @@ public class MoodService(IServiceProvider services) : IMood
             : await Backend.GetOwn(roomId, userId, cancellationToken).ConfigureAwait(false);
     }
 
-    public virtual async Task OnSetMood(Mood_Set command, CancellationToken cancellationToken = default)
+    public virtual async Task SetMood(Mood_Set command, CancellationToken cancellationToken = default)
     {
         var (session, roomId, level) = command;
         var userId = (await Users.GetUserIdBySession(session.Id, cancellationToken).ConfigureAwait(false)).RequireSignedIn();

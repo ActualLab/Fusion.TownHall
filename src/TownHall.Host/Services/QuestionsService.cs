@@ -33,28 +33,28 @@ public class QuestionsService(IServiceProvider services) : IQuestions
         return userId != null && await Backend.HasVote(roomId, index, userId, cancellationToken).ConfigureAwait(false);
     }
 
-    public virtual async Task<Question> OnPost(Questions_Post command, CancellationToken cancellationToken = default)
+    public virtual async Task<Question> Post(Questions_Post command, CancellationToken cancellationToken = default)
     {
         var (session, roomId, text, anonymous) = command;
         var userId = (await GetOwnUserId(session, cancellationToken).ConfigureAwait(false)).RequireSignedIn();
         return await Commander.Call(new QuestionsBackend_Post(roomId, userId, text, anonymous), true, cancellationToken).ConfigureAwait(false);
     }
 
-    public virtual async Task OnVote(Questions_Vote command, CancellationToken cancellationToken = default)
+    public virtual async Task Vote(Questions_Vote command, CancellationToken cancellationToken = default)
     {
         var (session, roomId, index, value) = command;
         var userId = (await GetOwnUserId(session, cancellationToken).ConfigureAwait(false)).RequireSignedIn();
         await Commander.Call(new QuestionsBackend_Vote(roomId, index, userId, value), true, cancellationToken).ConfigureAwait(false);
     }
 
-    public virtual async Task OnResolve(Questions_Resolve command, CancellationToken cancellationToken = default)
+    public virtual async Task Resolve(Questions_Resolve command, CancellationToken cancellationToken = default)
     {
         var (session, roomId, index, note) = command;
         await RequireOwner(session, roomId, cancellationToken).ConfigureAwait(false);
         await Commander.Call(new QuestionsBackend_Resolve(roomId, index, note), true, cancellationToken).ConfigureAwait(false);
     }
 
-    public virtual async Task OnDelete(Questions_Delete command, CancellationToken cancellationToken = default)
+    public virtual async Task Delete(Questions_Delete command, CancellationToken cancellationToken = default)
     {
         var (session, roomId, index) = command;
         await RequireOwner(session, roomId, cancellationToken).ConfigureAwait(false);

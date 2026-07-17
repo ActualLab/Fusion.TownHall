@@ -11,7 +11,7 @@ public interface IMoodBackend : IComputeService, IBackendService
     Task<int?> GetOwn(string roomId, string userId, CancellationToken cancellationToken = default);
 
     [CommandHandler]
-    Task OnSetMood(MoodBackend_Set command, CancellationToken cancellationToken = default);
+    Task SetMood(MoodBackend_Set command, CancellationToken cancellationToken = default);
 }
 
 [MessagePackObject(true)]

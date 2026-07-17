@@ -3,7 +3,7 @@ namespace TownHall.Tests;
 public abstract class RoomsTests(TestAppHost host) : TestBase(host)
 {
     [Fact]
-    public async Task OnCreateReturnsPausedRoomWithClampedDuration()
+    public async Task CreateReturnsPausedRoomWithClampedDuration()
     {
         var session = await NewUser();
         var room = await Call(new Rooms_Create(session, "  Board Q&A  ", TimeSpan.FromSeconds(1)));
@@ -27,7 +27,7 @@ public abstract class RoomsTests(TestAppHost host) : TestBase(host)
     }
 
     [Fact]
-    public async Task OnClaimOwnershipValidatesToken()
+    public async Task ClaimOwnershipValidatesToken()
     {
         var owner = await NewUser();
         var claimer = await NewUser();
@@ -40,7 +40,7 @@ public abstract class RoomsTests(TestAppHost host) : TestBase(host)
     }
 
     [Fact]
-    public async Task OnSetIsPrivateHidesRoomFromList()
+    public async Task SetIsPrivateHidesRoomFromList()
     {
         var owner = await NewUser();
         var other = await NewUser();
@@ -57,7 +57,7 @@ public abstract class RoomsTests(TestAppHost host) : TestBase(host)
     }
 
     [Fact]
-    public async Task OnSetTitleRenamesRoom()
+    public async Task SetTitleRenamesRoom()
     {
         var owner = await NewUser();
         var other = await NewUser();
@@ -71,7 +71,7 @@ public abstract class RoomsTests(TestAppHost host) : TestBase(host)
     }
 
     [Fact]
-    public async Task OnAdjustDurationShiftsAndClampsEndsAt()
+    public async Task AdjustDurationShiftsAndClampsEndsAt()
     {
         var owner = await NewUser();
         var room = await Call(new Rooms_Create(owner, "Duration", TimeSpan.FromHours(1)));
@@ -86,7 +86,7 @@ public abstract class RoomsTests(TestAppHost host) : TestBase(host)
     }
 
     [Fact]
-    public async Task OnAdjustDurationResurrectsJustEndedRoom()
+    public async Task AdjustDurationResurrectsJustEndedRoom()
     {
         var owner = await NewUser();
         var room = await Call(new Rooms_Create(owner, "Grace", TimeSpan.FromHours(1)));
@@ -103,7 +103,7 @@ public abstract class RoomsTests(TestAppHost host) : TestBase(host)
     }
 
     [Fact]
-    public async Task OnSetLiveRequiresOwner()
+    public async Task SetLiveRequiresOwner()
     {
         var owner = await NewUser();
         var other = await NewUser();
@@ -140,7 +140,7 @@ public abstract class RoomsTests(TestAppHost host) : TestBase(host)
     }
 
     [Fact]
-    public async Task OnCreateStoresLinkAndSingleParagraphDescription()
+    public async Task CreateStoresLinkAndSingleParagraphDescription()
     {
         var owner = await NewUser();
         var room = await Call(new Rooms_Create(owner, "Event", TimeSpan.FromHours(1),

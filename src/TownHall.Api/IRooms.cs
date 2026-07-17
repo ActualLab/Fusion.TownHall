@@ -24,39 +24,39 @@ public interface IRooms : IComputeService
     // as an owner. The room starts Paused with the timer frozen at the full duration (it begins
     // counting down only when first resumed).
     [CommandHandler]
-    Task<Room> OnCreate(Rooms_Create command, CancellationToken cancellationToken = default);
+    Task<Room> Create(Rooms_Create command, CancellationToken cancellationToken = default);
 
     // Validates the token; on match, marks the session as an owner of the room. Idempotent.
     [CommandHandler]
-    Task OnClaimOwnership(Rooms_ClaimOwnership command, CancellationToken cancellationToken = default);
+    Task ClaimOwnership(Rooms_ClaimOwnership command, CancellationToken cancellationToken = default);
 
     // Owner-only. Live=true resumes (shifting EndsAt forward by the paused duration), Live=false
     // pauses (freezing the remaining time). Idempotent. Rejected once Ended.
     [CommandHandler]
-    Task OnSetLive(Rooms_SetLive command, CancellationToken cancellationToken = default);
+    Task SetLive(Rooms_SetLive command, CancellationToken cancellationToken = default);
 
     // Owner-only. Hides the room from (or returns it to) the public list. Idempotent. Rejected once Ended.
     [CommandHandler]
-    Task OnSetIsPrivate(Rooms_SetIsPrivate command, CancellationToken cancellationToken = default);
+    Task SetIsPrivate(Rooms_SetIsPrivate command, CancellationToken cancellationToken = default);
 
     // Owner-only. Title: trimmed 1..80 chars. Allowed even after Ended (metadata, not votes/questions).
     [CommandHandler]
-    Task OnSetTitle(Rooms_SetTitle command, CancellationToken cancellationToken = default);
+    Task SetTitle(Rooms_SetTitle command, CancellationToken cancellationToken = default);
 
     // Owner-only. Link: "" or an http(s) URL (<=500). Allowed even after Ended.
     [CommandHandler]
-    Task OnSetLink(Rooms_SetLink command, CancellationToken cancellationToken = default);
+    Task SetLink(Rooms_SetLink command, CancellationToken cancellationToken = default);
 
     // Owner-only. Description: "" or a single paragraph (<=1000). Allowed even after Ended.
     [CommandHandler]
-    Task OnSetDescription(Rooms_SetDescription command, CancellationToken cancellationToken = default);
+    Task SetDescription(Rooms_SetDescription command, CancellationToken cancellationToken = default);
 
     // Owner-only. Shifts the remaining time by Delta (relative to the room's own clock, frozen while
     // paused), clamped so it stays within [0, 24 h] — shrinking a running hall to 0 ends it. An Ended
     // hall can be resurrected as running by a positive Delta within a 10-minute grace period
     // (EndsAt := now + Delta). Rejected otherwise.
     [CommandHandler]
-    Task OnAdjustDuration(Rooms_AdjustDuration command, CancellationToken cancellationToken = default);
+    Task AdjustDuration(Rooms_AdjustDuration command, CancellationToken cancellationToken = default);
 }
 
 [MessagePackObject(true)]

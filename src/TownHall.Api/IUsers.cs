@@ -3,13 +3,9 @@ using MessagePack;
 namespace TownHall;
 
 // Frontend user API: resolves a Session to a user and exposes public/own user data.
-// A session with no linked user is a guest - GetOwnUserId / GetOwn return null for it.
+// A session with no linked user is a guest - GetOwn returns null for it.
 public interface IUsers : IComputeService
 {
-    // The signed-in user's id for this session, or null if the session is a guest.
-    [ComputeMethod]
-    Task<string?> GetOwnUserId(Session session, CancellationToken cancellationToken = default);
-
     // The signed-in user's own account, or null if the session is a guest.
     [ComputeMethod]
     Task<UserFull?> GetOwn(Session session, CancellationToken cancellationToken = default);
@@ -21,7 +17,7 @@ public interface IUsers : IComputeService
 
     // Requires a signed-in user. Trimmed length 1..30. Renames the user everywhere (GetOwn + Get).
     [CommandHandler]
-    Task OnSetName(Users_SetName command, CancellationToken cancellationToken = default);
+    Task SetName(Users_SetName command, CancellationToken cancellationToken = default);
 }
 
 [MessagePackObject(true)]

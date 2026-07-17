@@ -18,15 +18,15 @@ public interface IAuth : IComputeService
     // Verifies the attestation, creates a new user with a default name, stores the credential and
     // links it to this session. Returns the new signed-in account.
     [CommandHandler]
-    Task<UserFull> OnRegisterPasskey(Auth_RegisterPasskey command, CancellationToken cancellationToken = default);
+    Task<UserFull> RegisterPasskey(Auth_RegisterPasskey command, CancellationToken cancellationToken = default);
 
     // Verifies the assertion against a stored credential and links the resolved user to this session.
     [CommandHandler]
-    Task<UserFull> OnSignIn(Auth_SignIn command, CancellationToken cancellationToken = default);
+    Task<UserFull> SignIn(Auth_SignIn command, CancellationToken cancellationToken = default);
 
     // Drops this session's user link, returning it to guest state. Idempotent.
     [CommandHandler]
-    Task OnSignOut(Auth_SignOut command, CancellationToken cancellationToken = default);
+    Task SignOut(Auth_SignOut command, CancellationToken cancellationToken = default);
 }
 
 [MessagePackObject(true)]

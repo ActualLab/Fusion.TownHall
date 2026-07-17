@@ -50,7 +50,7 @@ public class AuthService(IServiceProvider services) : IAuth
         return Task.FromResult(options.ToJson());
     }
 
-    public virtual async Task<UserFull> OnRegisterPasskey(Auth_RegisterPasskey command, CancellationToken cancellationToken = default)
+    public virtual async Task<UserFull> RegisterPasskey(Auth_RegisterPasskey command, CancellationToken cancellationToken = default)
     {
         var (session, attestationJson) = command;
         var response = JsonSerializer.Deserialize<AuthenticatorAttestationRawResponse>(attestationJson)
@@ -75,7 +75,7 @@ public class AuthService(IServiceProvider services) : IAuth
         return (await Backend.Get(userId, cancellationToken).ConfigureAwait(false))!;
     }
 
-    public virtual async Task<UserFull> OnSignIn(Auth_SignIn command, CancellationToken cancellationToken = default)
+    public virtual async Task<UserFull> SignIn(Auth_SignIn command, CancellationToken cancellationToken = default)
     {
         var (session, assertionJson) = command;
         var response = JsonSerializer.Deserialize<AuthenticatorAssertionRawResponse>(assertionJson)
@@ -105,7 +105,7 @@ public class AuthService(IServiceProvider services) : IAuth
         return (await Backend.Get(stored.UserId, cancellationToken).ConfigureAwait(false))!;
     }
 
-    public virtual async Task OnSignOut(Auth_SignOut command, CancellationToken cancellationToken = default)
+    public virtual async Task SignOut(Auth_SignOut command, CancellationToken cancellationToken = default)
     {
         await Commander.Call(new UsersBackend_UnlinkSession(command.Session.Id), true, cancellationToken).ConfigureAwait(false);
     }

@@ -33,24 +33,24 @@ public interface IQuestions : IComputeService
     // Requires room Live. Text: trimmed 1..500 chars. When Anonymous, the question is attributed to a
     // per-(user, room) pseudonym instead of the poster's real user (see AnonId).
     [CommandHandler]
-    Task<Question> OnPost(Questions_Post command, CancellationToken cancellationToken = default);
+    Task<Question> Post(Questions_Post command, CancellationToken cancellationToken = default);
 
     // Requires room Live and question Open. Sets (Value=true) or clears (Value=false) this session's
     // vote. Idempotent: re-setting an existing vote refreshes its CastAt; clearing a non-existent
     // vote is a no-op. One vote per (session, question); voting for your own question is allowed.
     [CommandHandler]
-    Task OnVote(Questions_Vote command, CancellationToken cancellationToken = default);
+    Task Vote(Questions_Vote command, CancellationToken cancellationToken = default);
 
     // Owner-only. Marks Open -> Resolved with an optional single-paragraph note (<=500 chars);
     // re-resolving overwrites the note but preserves the original resolution time. Allowed even
     // after Ended, so notes stay editable (one owner resolves, another can add/edit the note later).
     [CommandHandler]
-    Task OnResolve(Questions_Resolve command, CancellationToken cancellationToken = default);
+    Task Resolve(Questions_Resolve command, CancellationToken cancellationToken = default);
 
     // Owner-only, allowed while Paused or Live, rejected once Ended. Hard delete: the question,
     // its votes, and its resolution disappear. Idempotent.
     [CommandHandler]
-    Task OnDelete(Questions_Delete command, CancellationToken cancellationToken = default);
+    Task Delete(Questions_Delete command, CancellationToken cancellationToken = default);
 }
 
 [MessagePackObject(true)]

@@ -1,7 +1,7 @@
 namespace TownHall;
 
 // Backend presence tracker (host-local, in-memory - never touches the DB). Keyed by user id: only
-// signed-in users are present, so the audience is the set of present users. OnWatch is a plain
+// signed-in users are present, so the audience is the set of present users. Watch is a plain
 // memory-only heartbeat (no operation log), so a busy room doesn't spam the DB.
 public interface IPresenceBackend : IComputeService, IBackendService
 {
@@ -14,7 +14,7 @@ public interface IPresenceBackend : IComputeService, IBackendService
     [ComputeMethod]
     Task<PresentUsers> GetPresentUsersRaw(string roomId);
 
-    Task OnWatch(string roomId, string userId);
+    Task Watch(string roomId, string userId);
 }
 
 // The set of user ids present in a room, with value (sequence) equality so a steady stream of

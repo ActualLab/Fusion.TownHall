@@ -3,7 +3,7 @@ namespace TownHall.Tests;
 public abstract class MoodTests(TestAppHost host) : TestBase(host)
 {
     [Fact]
-    public async Task OnSetMoodRequiresLiveRoomAndValidLevel()
+    public async Task SetMoodRequiresLiveRoomAndValidLevel()
     {
         var owner = await NewUser();
         var room = await CreateRoom(owner, live: false);

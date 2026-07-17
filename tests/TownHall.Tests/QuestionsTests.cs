@@ -3,7 +3,7 @@ namespace TownHall.Tests;
 public abstract class QuestionsTests(TestAppHost host) : TestBase(host)
 {
     [Fact]
-    public async Task OnPostRequiresLiveRoom()
+    public async Task PostRequiresLiveRoom()
     {
         var owner = await NewUser();
         var room = await CreateRoom(owner, live: false);
@@ -12,7 +12,7 @@ public abstract class QuestionsTests(TestAppHost host) : TestBase(host)
     }
 
     [Fact]
-    public async Task OnPostAssignsIndexesAndReferencesAuthorById()
+    public async Task PostAssignsIndexesAndReferencesAuthorById()
     {
         var owner = await NewUser();
         var other = await NewUser();
@@ -43,7 +43,7 @@ public abstract class QuestionsTests(TestAppHost host) : TestBase(host)
     }
 
     [Fact]
-    public async Task OnPostCollapsesWhitespaceToSingleParagraph()
+    public async Task PostCollapsesWhitespaceToSingleParagraph()
     {
         var owner = await NewUser();
         var room = await CreateRoom(owner);
@@ -67,7 +67,7 @@ public abstract class QuestionsTests(TestAppHost host) : TestBase(host)
     }
 
     [Fact]
-    public async Task OnVoteSetsAndClearsVote()
+    public async Task VoteSetsAndClearsVote()
     {
         var owner = await NewUser();
         var voter = await NewUser();
@@ -83,7 +83,7 @@ public abstract class QuestionsTests(TestAppHost host) : TestBase(host)
     }
 
     [Fact]
-    public async Task OnVoteRequiresLiveRoomAndOpenQuestion()
+    public async Task VoteRequiresLiveRoomAndOpenQuestion()
     {
         var owner = await NewUser();
         var room = await CreateRoom(owner);
@@ -98,7 +98,7 @@ public abstract class QuestionsTests(TestAppHost host) : TestBase(host)
     }
 
     [Fact]
-    public async Task OnResolveMovesQuestionToResolved()
+    public async Task ResolveMovesQuestionToResolved()
     {
         var owner = await NewUser();
         var other = await NewUser();
@@ -134,7 +134,7 @@ public abstract class QuestionsTests(TestAppHost host) : TestBase(host)
     }
 
     [Fact]
-    public async Task OnDeleteRemovesEverything()
+    public async Task DeleteRemovesEverything()
     {
         var owner = await NewUser();
         var voter = await NewUser();
@@ -155,7 +155,7 @@ public abstract class QuestionsTests(TestAppHost host) : TestBase(host)
         var owner = await NewUser();
         var poster = await NewUser("Real Name");
         var room = await CreateRoom(owner);
-        var posterId = (await Users.GetOwnUserId(poster))!;
+        var posterId = (await Users.GetOwn(poster))!.Id;
 
         var pub = await Call(new Questions_Post(poster, room.Id, "Public?"));
         var anon1 = await Call(new Questions_Post(poster, room.Id, "Secret 1?", Anonymous: true));

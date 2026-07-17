@@ -60,11 +60,11 @@ of changing it.
   `TownHall.Backend` (backend interfaces): the frontend enforces identity
   (sign-in, ownership); the backend is id-based, assumes an authorized caller,
   and owns argument/status validation. Don't move checks across that line.
-- **Cross-branch naming parity.** A version branch names its API after `main`'s:
-  read methods take `main`'s exact names; write methods take `main`'s name minus
-  the Fusion `On` prefix (`OnPost` → `Post`, `OnCreate` → `Create`). Command
-  records, their parameter names, and member order match `main` wherever the
-  framework doesn't force a difference. The full alignment convention lives in
+- **Cross-branch naming parity.** API names are identical on every branch:
+  reads and writes use the same plain names everywhere (`Post`, `Create`,
+  `SetLive`, ... — no `On` prefix even on the Fusion branch). Command records,
+  their parameter names, and member order match `main` wherever the framework
+  doesn't force a difference. The full alignment convention lives in
   [.claude/commands/rebase-branches.md](.claude/commands/rebase-branches.md).
 
 # Database & migrations

@@ -105,7 +105,7 @@ public class QuestionsBackend(IServiceProvider services) : DbServiceBase<AppDbCo
     public virtual Task<Unit> PseudoVotes(string roomId, CancellationToken cancellationToken = default)
         => TaskExt.UnitTask;
 
-    public virtual async Task<Question> OnPost(QuestionsBackend_Post command, CancellationToken cancellationToken = default)
+    public virtual async Task<Question> Post(QuestionsBackend_Post command, CancellationToken cancellationToken = default)
     {
         var (roomId, authorUserId, text, anonymous) = command;
         var context = CommandContext.GetCurrent();
@@ -146,7 +146,7 @@ public class QuestionsBackend(IServiceProvider services) : DbServiceBase<AppDbCo
         return new Question(roomId, dbQuestion.Index, authorId, text, now);
     }
 
-    public virtual async Task OnVote(QuestionsBackend_Vote command, CancellationToken cancellationToken = default)
+    public virtual async Task Vote(QuestionsBackend_Vote command, CancellationToken cancellationToken = default)
     {
         var (roomId, index, userId, value) = command;
         if (Invalidation.IsActive) {
@@ -189,7 +189,7 @@ public class QuestionsBackend(IServiceProvider services) : DbServiceBase<AppDbCo
         await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    public virtual async Task OnResolve(QuestionsBackend_Resolve command, CancellationToken cancellationToken = default)
+    public virtual async Task Resolve(QuestionsBackend_Resolve command, CancellationToken cancellationToken = default)
     {
         var (roomId, index, note) = command;
         if (Invalidation.IsActive) {
@@ -218,7 +218,7 @@ public class QuestionsBackend(IServiceProvider services) : DbServiceBase<AppDbCo
         await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    public virtual async Task OnDelete(QuestionsBackend_Delete command, CancellationToken cancellationToken = default)
+    public virtual async Task Delete(QuestionsBackend_Delete command, CancellationToken cancellationToken = default)
     {
         var (roomId, index) = command;
         var context = CommandContext.GetCurrent();

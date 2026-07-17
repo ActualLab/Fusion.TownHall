@@ -48,7 +48,7 @@ public class MoodBackend(IServiceProvider services) : DbServiceBase<AppDbContext
         return dbMood?.Level;
     }
 
-    public virtual async Task OnSetMood(MoodBackend_Set command, CancellationToken cancellationToken = default)
+    public virtual async Task SetMood(MoodBackend_Set command, CancellationToken cancellationToken = default)
     {
         var (roomId, userId, level) = command;
         if (Invalidation.IsActive) {

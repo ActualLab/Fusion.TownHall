@@ -28,7 +28,7 @@ public class RoomsService(IServiceProvider services) : IRooms
             ? await Backend.GetOwnerToken(roomId, cancellationToken).ConfigureAwait(false)
             : null;
 
-    public virtual async Task<Room> OnCreate(Rooms_Create command, CancellationToken cancellationToken = default)
+    public virtual async Task<Room> Create(Rooms_Create command, CancellationToken cancellationToken = default)
     {
         var (session, title, duration, isPrivate, link, description) = command;
         var userId = (await GetOwnUserId(session, cancellationToken).ConfigureAwait(false)).RequireSignedIn();
@@ -37,49 +37,49 @@ public class RoomsService(IServiceProvider services) : IRooms
             .ConfigureAwait(false);
     }
 
-    public virtual async Task OnClaimOwnership(Rooms_ClaimOwnership command, CancellationToken cancellationToken = default)
+    public virtual async Task ClaimOwnership(Rooms_ClaimOwnership command, CancellationToken cancellationToken = default)
     {
         var (session, roomId, ownerToken) = command;
         var userId = (await GetOwnUserId(session, cancellationToken).ConfigureAwait(false)).RequireSignedIn();
         await Commander.Call(new RoomsBackend_ClaimOwnership(roomId, userId, ownerToken), true, cancellationToken).ConfigureAwait(false);
     }
 
-    public virtual async Task OnSetLive(Rooms_SetLive command, CancellationToken cancellationToken = default)
+    public virtual async Task SetLive(Rooms_SetLive command, CancellationToken cancellationToken = default)
     {
         var (session, roomId, live) = command;
         await RequireOwner(session, roomId, cancellationToken).ConfigureAwait(false);
         await Commander.Call(new RoomsBackend_SetLive(roomId, live), true, cancellationToken).ConfigureAwait(false);
     }
 
-    public virtual async Task OnSetIsPrivate(Rooms_SetIsPrivate command, CancellationToken cancellationToken = default)
+    public virtual async Task SetIsPrivate(Rooms_SetIsPrivate command, CancellationToken cancellationToken = default)
     {
         var (session, roomId, isPrivate) = command;
         await RequireOwner(session, roomId, cancellationToken).ConfigureAwait(false);
         await Commander.Call(new RoomsBackend_SetIsPrivate(roomId, isPrivate), true, cancellationToken).ConfigureAwait(false);
     }
 
-    public virtual async Task OnSetTitle(Rooms_SetTitle command, CancellationToken cancellationToken = default)
+    public virtual async Task SetTitle(Rooms_SetTitle command, CancellationToken cancellationToken = default)
     {
         var (session, roomId, title) = command;
         await RequireOwner(session, roomId, cancellationToken).ConfigureAwait(false);
         await Commander.Call(new RoomsBackend_SetTitle(roomId, title), true, cancellationToken).ConfigureAwait(false);
     }
 
-    public virtual async Task OnSetLink(Rooms_SetLink command, CancellationToken cancellationToken = default)
+    public virtual async Task SetLink(Rooms_SetLink command, CancellationToken cancellationToken = default)
     {
         var (session, roomId, link) = command;
         await RequireOwner(session, roomId, cancellationToken).ConfigureAwait(false);
         await Commander.Call(new RoomsBackend_SetLink(roomId, link), true, cancellationToken).ConfigureAwait(false);
     }
 
-    public virtual async Task OnSetDescription(Rooms_SetDescription command, CancellationToken cancellationToken = default)
+    public virtual async Task SetDescription(Rooms_SetDescription command, CancellationToken cancellationToken = default)
     {
         var (session, roomId, description) = command;
         await RequireOwner(session, roomId, cancellationToken).ConfigureAwait(false);
         await Commander.Call(new RoomsBackend_SetDescription(roomId, description), true, cancellationToken).ConfigureAwait(false);
     }
 
-    public virtual async Task OnAdjustDuration(Rooms_AdjustDuration command, CancellationToken cancellationToken = default)
+    public virtual async Task AdjustDuration(Rooms_AdjustDuration command, CancellationToken cancellationToken = default)
     {
         var (session, roomId, delta) = command;
         await RequireOwner(session, roomId, cancellationToken).ConfigureAwait(false);

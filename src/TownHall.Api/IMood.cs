@@ -14,7 +14,7 @@ public interface IMood : IComputeService
 
     // Requires room Live. Level in 1..5. Overwrites the previous value.
     [CommandHandler]
-    Task OnSetMood(Mood_Set command, CancellationToken cancellationToken = default);
+    Task SetMood(Mood_Set command, CancellationToken cancellationToken = default);
 }
 
 [MessagePackObject(true)]

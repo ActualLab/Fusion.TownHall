@@ -72,7 +72,7 @@ public class UsersBackend(IServiceProvider services) : DbServiceBase<AppDbContex
         ];
     }
 
-    public virtual async Task<string> OnCreate(UsersBackend_Create command, CancellationToken cancellationToken = default)
+    public virtual async Task<string> Create(UsersBackend_Create command, CancellationToken cancellationToken = default)
     {
         if (Invalidation.IsActive)
             return null!;
@@ -96,7 +96,7 @@ public class UsersBackend(IServiceProvider services) : DbServiceBase<AppDbContex
         return id;
     }
 
-    public virtual async Task OnSetName(UsersBackend_SetName command, CancellationToken cancellationToken = default)
+    public virtual async Task SetName(UsersBackend_SetName command, CancellationToken cancellationToken = default)
     {
         var (userId, name) = command;
         if (Invalidation.IsActive) {
@@ -117,7 +117,7 @@ public class UsersBackend(IServiceProvider services) : DbServiceBase<AppDbContex
         await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    public virtual async Task OnLinkSession(UsersBackend_LinkSession command, CancellationToken cancellationToken = default)
+    public virtual async Task LinkSession(UsersBackend_LinkSession command, CancellationToken cancellationToken = default)
     {
         var (sessionId, userId) = command;
         if (Invalidation.IsActive) {
@@ -137,7 +137,7 @@ public class UsersBackend(IServiceProvider services) : DbServiceBase<AppDbContex
         await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    public virtual async Task OnUnlinkSession(UsersBackend_UnlinkSession command, CancellationToken cancellationToken = default)
+    public virtual async Task UnlinkSession(UsersBackend_UnlinkSession command, CancellationToken cancellationToken = default)
     {
         var sessionId = command.SessionId;
         if (Invalidation.IsActive) {
@@ -157,7 +157,7 @@ public class UsersBackend(IServiceProvider services) : DbServiceBase<AppDbContex
         await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    public virtual async Task OnAddCredential(UsersBackend_AddCredential command, CancellationToken cancellationToken = default)
+    public virtual async Task AddCredential(UsersBackend_AddCredential command, CancellationToken cancellationToken = default)
     {
         if (Invalidation.IsActive)
             return;
@@ -177,7 +177,7 @@ public class UsersBackend(IServiceProvider services) : DbServiceBase<AppDbContex
         await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    public virtual async Task OnUpdateSignCount(UsersBackend_UpdateSignCount command, CancellationToken cancellationToken = default)
+    public virtual async Task UpdateSignCount(UsersBackend_UpdateSignCount command, CancellationToken cancellationToken = default)
     {
         if (Invalidation.IsActive)
             return;

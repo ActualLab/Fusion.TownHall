@@ -280,8 +280,10 @@ For typical RPC API (interface):
    Typically, these are `[ComputeMethod]` methods.
 2. Write methods go next,
    Typically, these are `[CommandHandler]` methods.
-3. Command handler methods should have `On` prefix
-   (e.g., `OnChange`, `OnUpdate`).
+3. Command handler methods use the plain action name, with **no `On` prefix**
+   (e.g., `Change`, `Update`). This deviates from the broader ActualLab
+   convention (`OnChange`, `OnUpdate`) so the same names work identically
+   on every framework version-branch of this repo.
 4. Command handler commands should be declared right after API interface
    in the same file. Their names should start with `{InterfaceNameWithoutI}_`
    prefix, e.g., `Chat_Edit` for `IChat` interface.
@@ -313,7 +315,7 @@ public class Chats(IServiceProvider services) : IChats
     
     // 4. Public write methods (e.g., command handlers)
     // [CommandHandler]
-    public virtual async Task<Chat> OnChange(Chats_Change command, CancellationToken cancellationToken)
+    public virtual async Task<Chat> Change(Chats_Change command, CancellationToken cancellationToken)
     { /* ... */ }
     
     // Protected methods
@@ -339,9 +341,9 @@ public interface IMediaBackend : IComputeService, IBackendService
     Task<Media?> GetByContentId(string contentId, CancellationToken cancellationToken);
 
     [CommandHandler]
-    Task<Media?> OnChange(MediaBackend_Change command, CancellationToken cancellationToken);
+    Task<Media?> Change(MediaBackend_Change command, CancellationToken cancellationToken);
     [CommandHandler]
-    Task OnCopyChat(MediaBackend_CopyChat command, CancellationToken cancellationToken);
+    Task CopyChat(MediaBackend_CopyChat command, CancellationToken cancellationToken);
 }
 
 [DataContract, MemoryPackable(GenerateType.VersionTolerant)]

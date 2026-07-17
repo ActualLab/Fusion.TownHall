@@ -1,67 +1,42 @@
-using MessagePack;
-
 namespace TownHall;
 
-// Backend questions + votes store. Id-based; the frontend enforces sign-in / room-live / ownership.
-public interface IQuestionsBackend : IComputeService, IBackendService
+// Backend questions + votes store. Id-based; the frontend enforces sign-in / room-live / ownership and
+// fills in the caller's own-vote flag (ReadList leaves QuestionView.HasOwnVote false).
+public interface IQuestionsBackend
 {
-    [ComputeMethod]
-    Task<Question?> Get(string roomId, long index, CancellationToken cancellationToken = default);
-    [ComputeMethod]
-    Task<ImmutableArray<long>> ListOpen(string roomId, CancellationToken cancellationToken = default);
-    [ComputeMethod]
-    Task<ImmutableArray<long>> ListTopOpen(string roomId, int limit, CancellationToken cancellationToken = default);
-    [ComputeMethod]
-    Task<ImmutableArray<long>> ListResolved(string roomId, CancellationToken cancellationToken = default);
-    [ComputeMethod]
-    Task<Resolution?> GetResolution(string roomId, long index, CancellationToken cancellationToken = default);
-    [ComputeMethod]
-    Task<int> GetVoteCount(string roomId, long index, CancellationToken cancellationToken = default);
-    [ComputeMethod]
-    Task<bool> HasVote(string roomId, long index, string userId, CancellationToken cancellationToken = default);
-    // A pseudo dependency invalidated by any vote change in a room; trending / total-vote reads depend on it.
-    [ComputeMethod]
-    Task<Unit> PseudoVotes(string roomId, CancellationToken cancellationToken = default);
+    Task<ImmutableArray<QuestionView>> ReadList(string roomId, bool resolved, CancellationToken cancellationToken = default);
 
-    [CommandHandler]
     Task<Question> Post(QuestionsBackend_Post command, CancellationToken cancellationToken = default);
-    [CommandHandler]
     Task Vote(QuestionsBackend_Vote command, CancellationToken cancellationToken = default);
-    [CommandHandler]
     Task Resolve(QuestionsBackend_Resolve command, CancellationToken cancellationToken = default);
-    [CommandHandler]
     Task Delete(QuestionsBackend_Delete command, CancellationToken cancellationToken = default);
 }
 
-[MessagePackObject(true)]
 // ReSharper disable once InconsistentNaming
 public sealed record QuestionsBackend_Post(
     string RoomId,
     string AuthorUserId,
     string Text,
     bool Anonymous = false
-) : ICommand<Question>, IBackendCommand;
+);
 
-[MessagePackObject(true)]
 // ReSharper disable once InconsistentNaming
 public sealed record QuestionsBackend_Vote(
     string RoomId,
     long QuestionIndex,
     string UserId,
     bool Value
-) : ICommand<Unit>, IBackendCommand;
+);
 
-[MessagePackObject(true)]
 // ReSharper disable once InconsistentNaming
 public sealed record QuestionsBackend_Resolve(
     string RoomId,
     long QuestionIndex,
     string Note
-) : ICommand<Unit>, IBackendCommand;
+);
 
-[MessagePackObject(true)]
 // ReSharper disable once InconsistentNaming
 public sealed record QuestionsBackend_Delete(
     string RoomId,
     long QuestionIndex
-) : ICommand<Unit>, IBackendCommand;
+);

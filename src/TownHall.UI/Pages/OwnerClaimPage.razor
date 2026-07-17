@@ -1,5 +1,7 @@
 @page "/room/{RoomId}/own/{Token}"
-@inherits CircuitHubComponentBase
+@inherits AppComponentBase
+@inject IRooms Rooms
+@inject IUsers Users
 
 <PageTitle>Town Hall</PageTitle>
 
@@ -25,13 +27,13 @@ else {
         if (!firstRender)
             return;
 
-        if (await Services.GetRequiredService<IUsers>().GetOwn(Session) == null) {
+        if (await Users.GetOwn().FirstAsync() == null) {
             _error = "Please sign in (top-right), then open this owner link again.";
             StateHasChanged();
             return;
         }
         try {
-            await Services.Commander().Call(new Rooms_ClaimOwnership(Session, RoomId, Token));
+            await Rooms.ClaimOwnership(new Rooms_ClaimOwnership(RoomId, Token));
         }
         catch (Exception e) {
             _error = e.Message;

@@ -1,4 +1,4 @@
-@inherits ComputedStateComponent<UserFull?>
+@inherits StateComponent<UserFull?>
 @inject IUsers Users
 @inject IAuth Auth
 @inject TownHall.UI.Services.PasskeyClient Passkey
@@ -6,7 +6,7 @@
 @inject ISnackbar Snackbar
 
 @{
-    var user = State.ValueOrDefault;
+    var user = State;
 }
 @if (user is { } signedIn) {
     @if (_isEditing) {
@@ -41,25 +41,19 @@ else {
     private bool _busy;
     private string _editedName = "";
 
-    protected override void OnInitialized()
-        // The edit-mode toggle and busy flag are local state changed via events
-        => MustRenderAfterEvent = true;
-
-    protected override async Task<UserFull?> ComputeState(CancellationToken cancellationToken)
-    {
-        return await Users.GetOwn(Session, cancellationToken);
-    }
+    protected override IAsyncEnumerable<UserFull?> Stream(CancellationToken cancellationToken)
+        => Users.GetOwn(cancellationToken);
 
     private void StartEdit()
     {
-        _editedName = State.ValueOrDefault?.Name ?? "";
+        _editedName = State?.Name ?? "";
         _isEditing = true;
     }
 
     private void Save()
     {
         _isEditing = false;
-        _ = UICommander.Run(new Users_SetName(Session, _editedName));
+        _ = UICommander.Run(() => Users.SetName(new Users_SetName(_editedName)));
     }
 
     private async Task CreatePasskey()
@@ -72,11 +66,11 @@ else {
 
         _busy = true;
         try {
-            var options = await Auth.GetRegistrationOptions(Session, name);
+            var options = await Auth.GetRegistrationOptions(name);
             var attestation = await Passkey.Register(options);
-            var result = await UICommander.Run(new Auth_RegisterPasskey(Session, attestation));
+            var result = await UICommander.Run(() => Auth.RegisterPasskey(new Auth_RegisterPasskey(attestation)));
             if (!result.HasError)
-                Snackbar.Add($"Passkey created — signed in as {result.Value.Name}.", Severity.Success);
+                Snackbar.Add($"Passkey created — signed in as {result.Value!.Name}.", Severity.Success);
         }
         catch (Exception) {
             Snackbar.Add("Passkey creation was cancelled or unavailable.", Severity.Warning);
@@ -90,11 +84,11 @@ else {
     {
         _busy = true;
         try {
-            var options = await Auth.GetSignInOptions(Session);
+            var options = await Auth.GetSignInOptions();
             var assertion = await Passkey.Authenticate(options);
-            var result = await UICommander.Run(new Auth_SignIn(Session, assertion));
+            var result = await UICommander.Run(() => Auth.SignIn(new Auth_SignIn(assertion)));
             if (!result.HasError)
-                Snackbar.Add($"Signed in as {result.Value.Name}.", Severity.Success);
+                Snackbar.Add($"Signed in as {result.Value!.Name}.", Severity.Success);
         }
         catch (Exception) {
             Snackbar.Add("Sign-in was cancelled or no passkey was found.", Severity.Warning);
@@ -105,5 +99,5 @@ else {
     }
 
     private void SignOut()
-        => _ = UICommander.Run(new Auth_SignOut(Session));
+        => _ = UICommander.Run(() => Auth.SignOut());
 }

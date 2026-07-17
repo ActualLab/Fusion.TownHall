@@ -8,14 +8,9 @@
     <ProjectReference Include="..\TownHall.Abstractions\TownHall.Abstractions.csproj" />
   </ItemGroup>
 
-  <!-- Fusion packages -->
+  <!-- ActualLab packages -->
   <ItemGroup>
-    <PackageReference Include="ActualLab.Fusion" />
-  </ItemGroup>
-
-  <!-- Source generators -->
-  <ItemGroup>
-    <PackageReference Include="ActualLab.Generators" PrivateAssets="all" />
+    <PackageReference Include="ActualLab.Core" />
   </ItemGroup>
 
 </Project>

@@ -1,5 +1,7 @@
-@using ActualLab.Fusion.Blazor
-@using ActualLab.Fusion.Server.Endpoints
+@using Microsoft.AspNetCore.Components.Web
+@using TownHall.Host
+@using TownHall.UI
+@using TownHall.UI.Services
 
 <!DOCTYPE html>
 <html lang="en">
@@ -8,18 +10,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Town Hall</title>
     <base href="/" />
-    <ResourcePreloader />
     <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="@Assets["_content/MudBlazor/MudBlazor.min.css"]" />
     <ImportMap />
     <link rel="icon" type="image/ico" href="favicon.ico" />
-    <HeadOutlet @rendermode="@(_renderMode?.Mode)" />
+    <HeadOutlet @rendermode="@(_renderMode.Mode)" />
 </head>
 <body>
-    <App @rendermode="@(_renderMode?.Mode)"
+    <App @rendermode="@(_renderMode.Mode)"
          SessionId="@_sessionId"
-         PropagateSessionToWasm="@_propagateSessionToWasm"
-         RenderModeKey="@(_renderMode?.Key)" />
+         RenderModeKey="@(_renderMode.Key)" />
     <div id="blazor-error-ui" data-nosnippet>
         An unhandled error has occurred.
         <a href="." class="reload">Reload</a>
@@ -41,45 +41,28 @@
 </html>
 
 @code {
-    private bool _isInitialized;
-    private RenderModeDef? _renderMode; // Static by default
+    private RenderModeDef _renderMode = RenderModeDef.Default;
     private string _sessionId = "";
-    private bool _propagateSessionToWasm;
 
     [Inject] private IWebHostEnvironment Env { get; init; } = null!;
-    [Inject] private ISessionResolver SessionResolver { get; init; } = null!;
 
     [CascadingParameter]
     private HttpContext HttpContext { get; set; } = null!;
 
-    public override Task SetParametersAsync(ParameterView parameters)
+    protected override void OnInitialized()
     {
-        // We want to resolve the render mode before the very first render.
-        // That's why we override SetParametersAsync instead of OnInitialized.
-        if (!_isInitialized) {
-            _isInitialized = true;
-            parameters.SetParameterProperties(this); // This call must be executed ASAP
-            if (HttpContext.AcceptsInteractiveRouting())
-                _renderMode = RenderModeEndpoint.GetRenderMode(HttpContext);
+        // Render mode comes from the cookie the /render-mode switch endpoint sets
+        var cookieMode = HttpContext.Request.Cookies.TryGetValue("RenderMode", out var m) ? m : "";
+        _renderMode = RenderModeDef.GetOrDefault(cookieMode);
 
-            // The session is per-browser: it comes from the FusionAuth.SessionId cookie that
-            // UseFusionSession()'s middleware resolves (or creates) for this request. WASM normally
-            // relies on Session.Default, which the server-side RPC layer substitutes with the same
-            // cookie session bound to the WebSocket connection - so SessionId is only used for the
-            // server render mode below.
-            //
-            // Outside Production, a ?session=<id> query parameter overrides the cookie session for
-            // this tab, letting one browser act as several distinct users while testing. In that
-            // case we also propagate the exact session to the WASM client (it can't be inferred
-            // from Session.Default anymore). The override is disabled in Production entirely.
-            var sessionOverride = Env.IsProduction() ? "" : HttpContext.Request.Query["session"].ToString();
-            if (sessionOverride.Length >= 8) { // Session ids shorter than 8 chars are rejected by the ctor
-                _sessionId = sessionOverride;
-                _propagateSessionToWasm = true;
-            }
-            else
-                _sessionId = SessionResolver.Session.Id;
-        }
-        return base.SetParametersAsync(parameters);
+        // Session for the server/auto render modes: a ?session= override (disabled in Production) else
+        // the session id the cookie middleware resolved (in HttpContext.Items - present even on the
+        // first request, when the cookie is only in the response), falling back to the request cookie.
+        var sessionOverride = Env.IsProduction() ? "" : HttpContext.Request.Query["session"].ToString();
+        var fromItems = HttpContext.Items.TryGetValue(TownHallHub.SessionCookieName, out var it) ? it as string : null;
+        _sessionId = sessionOverride.Length >= 8
+            ? sessionOverride
+            : fromItems is { Length: >= 8 } ? fromItems
+            : HttpContext.Request.Cookies.TryGetValue(TownHallHub.SessionCookieName, out var s) ? s : "";
     }
 }

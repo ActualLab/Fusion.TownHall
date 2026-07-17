@@ -1,4 +1,4 @@
-@inherits CircuitHubComponentBase
+@inherits AppComponentBase
 @inject IQuestions Questions
 @inject IDialogService DialogService
 
@@ -51,7 +51,7 @@
         if (isConfirmed != true)
             return;
 
-        var result = await UICommander.Run(new Questions_Post(Session, RoomId, text, _anonymous));
+        var result = await UICommander.Run(() => Questions.Post(new Questions_Post(RoomId, text, _anonymous)));
         if (!result.HasError)
             _text = "";
     }

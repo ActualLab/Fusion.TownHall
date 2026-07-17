@@ -1,6 +1,6 @@
-@using ActualLab.Rpc
-@inherits CircuitHubComponentBase
+@inherits AppComponentBase
 @implements IDisposable
+@inject IPresence Presence
 
 @code {
     private readonly CancellationTokenSource _disposeCts = new();
@@ -24,14 +24,13 @@
     private async Task Beat(CancellationToken cancellationToken)
     {
         // The heartbeat: one Presence_Watch on page open, then every 15 s while it stays open
-        var commander = Services.Commander();
         var roomId = RoomId;
         while (!cancellationToken.IsCancellationRequested) {
             try {
-                await commander.Call(new Presence_Watch(Session, roomId), cancellationToken);
+                await Presence.Watch(new Presence_Watch(roomId), cancellationToken);
             }
             catch (Exception) {
-                // Transient failure; the next beat retries anyway
+                // Transient failure (e.g. mid-reconnect); the next beat retries anyway
             }
             try {
                 await Task.Delay(TimeSpan.FromSeconds(15), cancellationToken);

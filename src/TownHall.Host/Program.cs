@@ -1,13 +1,7 @@
-using System.Data;
-using ActualLab.Fusion.EntityFramework;
-using ActualLab.Fusion.EntityFramework.Npgsql;
-using ActualLab.Fusion.EntityFramework.Operations;
-using ActualLab.Fusion.Server;
-using ActualLab.Interception;
-using ActualLab.Rpc;
-using ActualLab.Rpc.Server;
 using Microsoft.AspNetCore.Hosting.StaticWebAssets;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration.Memory;
 using TownHall;
 using TownHall.Host;
@@ -15,43 +9,41 @@ using TownHall.Host.Components.Pages;
 using TownHall.Db;
 using TownHall.Host.Services;
 using TownHall.UI;
-
-// IComputeService validation should be off in release
-#if !DEBUG
-Interceptor.Options.Defaults.IsValidationEnabled = false;
-#endif
+using TownHall.UI.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 var env = builder.Environment;
 var cfg = builder.Configuration;
-var hostSettings = cfg.GetSettings<HostSettings>();
+var hostSettings = cfg.GetSection("Host").Get<HostSettings>() ?? new HostSettings();
 
-cfg.Sources.Insert(0, new MemoryConfigurationSource() {
+// Appended (highest priority) so the app always binds this port - even under the Aspire AppHost,
+// which would otherwise inject its own ASPNETCORE_URLS. Keeps the server-loop probe + URLs on :5136.
+cfg.Sources.Add(new MemoryConfigurationSource() {
     InitialData = new Dictionary<string, string>(StringComparer.Ordinal) {
-        { WebHostDefaults.ServerUrlsKey, $"http://localhost:{hostSettings.Port ?? 5136}" }, // Override default server URLs
+        { WebHostDefaults.ServerUrlsKey, $"http://localhost:{hostSettings.Port ?? 5136}" },
     }!
 });
-
-// OpenTelemetry (logs/traces/metrics) streams to the Aspire dashboard when run under the AppHost
-builder.AddServiceDefaults();
 
 // Configure services
 var services = builder.Services;
 ConfigureLogging();
+// After ConfigureLogging (which ClearProviders + AddConsole), so the OTel logging provider survives.
+// OpenTelemetry (logs/traces/metrics) streams to the Aspire dashboard when run under the AppHost.
+builder.AddServiceDefaults();
 ConfigureServices();
 builder.WebHost.UseDefaultServiceProvider((ctx, options) => {
-    if (ctx.HostingEnvironment.IsDevelopment()) {
+    // ValidateOnBuild stays off: the server-direct services are factory-registered and read the
+    // per-circuit CircuitSession, which isn't set until App initializes a circuit.
+    if (ctx.HostingEnvironment.IsDevelopment())
         options.ValidateScopes = true;
-        options.ValidateOnBuild = true;
-    }
 });
 
 // Build & configure app
 var app = builder.Build();
-StaticLog.Factory = app.Services.LoggerFactory();
 ConfigureApp();
 
-// Migrate the DB to the latest schema (see src/TownHall.Db/Migrations)
+// Migrate the DB to the latest schema (see src/TownHall.Db/Migrations). The schema (incl. the unused
+// Fusion operation tables) is kept identical across framework branches so they share one DB.
 var dbContextFactory = app.Services.GetRequiredService<IDbContextFactory<AppDbContext>>();
 await using (var dbContext = await dbContextFactory.CreateDbContextAsync()) {
     if (hostSettings.MustRecreateDb)
@@ -79,73 +71,68 @@ void ConfigureServices()
 {
     services.AddSingleton(hostSettings);
 
-    // DbContext & related services
-    DbOperationScope.Options.DefaultIsolationLevel = IsolationLevel.RepeatableRead;
-    services.AddDbContextServices<AppDbContext>(db => {
-        db.AddOperations(operations => {
-            operations.ConfigureOperationLogReader(_ => new() {
-                CheckPeriod = TimeSpan.FromSeconds(env.IsDevelopment() ? 60 : 5),
-            });
-            operations.ConfigureEventLogReader(_ => new() {
-                CheckPeriod = TimeSpan.FromSeconds(env.IsDevelopment() ? 60 : 5),
-            });
-            operations.AddNpgsqlOperationLogWatcher();
-        });
-        // Batched by-key lookups for compute-method reads
-        db.AddEntityResolver<string, DbRoom>();
-        db.AddEntityResolver<string, DbUser>();
-        db.AddEntityResolver<string, DbQuestion>();
-        // ReSharper disable once VariableHidesOuterVariable
-        db.Services.AddTransientDbContextFactory<AppDbContext>((c, db) => {
-            db.UseNpgsql(hostSettings.PostgreSql, npgsql => {
-                npgsql.EnableRetryOnFailure(0);
-            });
-            db.UseNpgsqlHintFormatter();
-            db.AddInterceptors(new DbMetrics()); // Query + fetched-row counters (TownHall.Db meter)
-            if (env.IsDevelopment())
-                db.EnableSensitiveDataLogging();
-        });
+    // EF Core (plain - no Fusion operations layer)
+    services.AddDbContextFactory<AppDbContext>(db => {
+        db.UseNpgsql(hostSettings.PostgreSql);
+        db.AddInterceptors(new DbMetrics()); // Query + fetched-row counters (TownHall.Db meter)
+        // The migration/snapshot intentionally still model the (unused) Fusion operation tables, so the
+        // schema stays identical across framework branches; our lean model doesn't, so ignore the mismatch.
+        db.ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning));
+        if (env.IsDevelopment())
+            db.EnableSensitiveDataLogging();
     });
 
-    // Fusion services
-    var fusion = services.AddFusion(RpcServiceMode.Server, true);
-    fusion.AddWebServer();
-    fusion.AddOperationReprocessor();
+    // Reactive core (shared singletons)
+    services.AddSingleton<ChangeTracker>();
+    services.AddSingleton<PresenceStore>();
 
-    // Backend services - local (not RPC-exposed); they do the work on ids and assume the caller
-    // is already authorized. The frontend services above are what RPC exposes.
-    fusion.AddComputeService<IUsersBackend, UsersBackend>();
-    fusion.AddComputeService<IRoomsBackend, RoomsBackend>();
-    fusion.AddComputeService<IQuestionsBackend, QuestionsBackend>();
-    fusion.AddComputeService<IRoomStatsBackend, RoomStatsBackend>();
-    fusion.AddComputeService<IPresenceBackend, PresenceBackend>();
-    fusion.AddComputeService<IMoodBackend, MoodBackend>();
-
-    // Frontend services - RPC-exposed; resolve Session -> user, check permissions, then delegate.
-    fusion.AddServer<IUsers, UsersService>();
-    fusion.AddServer<IAuth, AuthService>();
-    fusion.AddServer<IRooms, RoomsService>();
-    fusion.AddServer<IQuestions, QuestionsService>();
-    fusion.AddServer<IRoomStats, RoomStatsService>();
-    fusion.AddServer<IPresence, PresenceService>();
-    fusion.AddServer<IMood, MoodService>();
+    // Backend services - local (not hub-exposed); they do the work on ids and assume the caller
+    // is already authorized.
+    services.AddSingleton<IUsersBackend, UsersBackend>();
+    services.AddSingleton<IRoomsBackend, RoomsBackend>();
+    services.AddSingleton<IQuestionsBackend, QuestionsBackend>();
+    services.AddSingleton<IRoomStatsBackend, RoomStatsBackend>();
+    services.AddSingleton<IPresenceBackend, PresenceBackend>();
+    services.AddSingleton<IMoodBackend, MoodBackend>();
+    services.AddSingleton<ServerShared>();
 
     // Passkey (WebAuthn) infrastructure
     services.AddSingleton<PasskeyChallengeStore>();
-    services.AddFido2(fido2 => {
-        fido2.ServerDomain = hostSettings.PasskeyRpId;
-        fido2.ServerName = "TownHall";
-        fido2.Origins = hostSettings.PasskeyOrigins.ToHashSet(StringComparer.Ordinal);
+    services.AddSingleton(new Fido2NetLib.Fido2Configuration {
+        ServerDomain = hostSettings.PasskeyRpId,
+        ServerName = "TownHall",
+        Origins = hostSettings.PasskeyOrigins.ToHashSet(StringComparer.Ordinal),
     });
 
+    // SignalR (the app's data hub, used by the WASM client) - MessagePack wire protocol
+    services.AddSignalR(o => {
+        o.EnableDetailedErrors = env.IsDevelopment();
+        o.AddFilter<ErrorHubFilter>();
+    }).AddMessagePackProtocol(HubProtocolConfig.Configure);
+
     // Web
-    services.AddServerSideBlazor(o => o.DetailedErrors = true);
     services.AddRazorComponents()
         .AddInteractiveServerComponents()
         .AddInteractiveWebAssemblyComponents();
 
-    // Shared services; fusion.AddBlazor() inside must follow services.AddServerSideBlazor()
+    // Shared services
     ClientStartup.ConfigureSharedServices(services);
+
+    // Server-direct implementations of the reactive interfaces (used in Server/Auto render modes),
+    // each bound to the browser's session for the current circuit. In WASM the same interfaces are
+    // provided by the hub-routing clients in the separate WASM container.
+    services.AddScoped<CircuitSession>();
+    services.AddScoped<IUsers>(sp => new UsersService(sp.GetRequiredService<ServerShared>(), CircuitIdentity(sp)));
+    services.AddScoped<IAuth>(sp => new AuthService(sp.GetRequiredService<ServerShared>(), CircuitIdentity(sp)));
+    services.AddScoped<IRooms>(sp => new RoomsService(sp.GetRequiredService<ServerShared>(), CircuitIdentity(sp)));
+    services.AddScoped<IQuestions>(sp => new QuestionsService(sp.GetRequiredService<ServerShared>(), CircuitIdentity(sp)));
+    services.AddScoped<IRoomStats>(sp => new RoomStatsService(sp.GetRequiredService<ServerShared>(), CircuitIdentity(sp)));
+    services.AddScoped<IPresence>(sp => new PresenceService(sp.GetRequiredService<ServerShared>(), CircuitIdentity(sp)));
+    services.AddScoped<IMood>(sp => new MoodService(sp.GetRequiredService<ServerShared>(), CircuitIdentity(sp)));
+    return;
+
+    static Identity CircuitIdentity(IServiceProvider sp)
+        => Identity.Of(sp.GetRequiredService<CircuitSession>().SessionId);
 }
 
 void ConfigureApp()
@@ -158,12 +145,27 @@ void ConfigureApp()
         app.UseExceptionHandler("/Error", createScopeForErrors: true);
         app.UseHsts();
     }
-    app.UseWebSockets(new WebSocketOptions() {
-        KeepAliveInterval = TimeSpan.FromSeconds(30),
+
+    // Ensure a per-browser session cookie exists before the WASM client opens its hub connection, and
+    // expose the resolved id via HttpContext.Items so the server-render pass (_HostPage) uses the SAME
+    // id as the cookie even on the first request (when the cookie is only in the response, not the
+    // request) - otherwise the server-render session and the hub's cookie session would diverge.
+    app.Use(async (context, next) => {
+        var sessionId = context.Request.Cookies[TownHallHub.SessionCookieName];
+        if (sessionId is not { Length: >= 8 }) {
+            sessionId = Guid.NewGuid().ToString("N");
+            context.Response.Cookies.Append(TownHallHub.SessionCookieName, sessionId,
+                new CookieOptions {
+                    HttpOnly = true,
+                    IsEssential = true,
+                    SameSite = SameSiteMode.Lax,
+                    MaxAge = TimeSpan.FromDays(365),
+                });
+        }
+        context.Items[TownHallHub.SessionCookieName] = sessionId;
+        await next();
     });
-    app.UseFusionSession();
-    app.UseRouting();
-    app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
+
     app.UseAntiforgery();
 
     // Razor components
@@ -173,23 +175,37 @@ void ConfigureApp()
         .AddInteractiveWebAssemblyRenderMode()
         .AddAdditionalAssemblies(typeof(App).Assembly);
 
-    // Fusion endpoints
-    app.MapRpcWebSocketServer();
-    app.MapFusionRenderModeEndpoints();
+    // SignalR endpoints
+    app.MapHub<TownHallHub>("/townhall-hub");
 
     // Dev-only sign-in without a passkey - for automated/manual testing of the signed-in flows.
     // Gated to Development; never mapped in production.
-    if (env.IsDevelopment() || hostSettings.EnableDevSignIn) {
-        app.MapPost("/dev/signin", async (ISessionResolver sessionResolver, ICommander commander, string? name) => {
-            var session = await sessionResolver.GetSession();
-            var userId = await commander.Call(new UsersBackend_Create(name ?? ""));
-            await commander.Call(new UsersBackend_LinkSession(session.Id, userId));
+    if (env.IsDevelopment()) {
+        app.MapPost("/dev/signin", async (HttpContext ctx, IUsersBackend users, string? name) => {
+            var sessionId = ctx.Request.Cookies[TownHallHub.SessionCookieName] ?? "";
+            if (sessionId.Length < 8)
+                return Results.BadRequest();
+
+            var userId = await users.Create(new UsersBackend_Create(name ?? ""));
+            await users.LinkSession(new UsersBackend_LinkSession(sessionId, userId));
             return Results.Ok(new { userId });
         });
-        app.MapPost("/dev/signout", async (ISessionResolver sessionResolver, ICommander commander) => {
-            var session = await sessionResolver.GetSession();
-            await commander.Call(new UsersBackend_UnlinkSession(session.Id));
+        app.MapPost("/dev/signout", async (HttpContext ctx, IUsersBackend users) => {
+            var sessionId = ctx.Request.Cookies[TownHallHub.SessionCookieName] ?? "";
+            await users.UnlinkSession(new UsersBackend_UnlinkSession(sessionId));
             return Results.Ok(new { ok = true });
         });
     }
+
+    // Persist the chosen Blazor render mode (Auto/Server/WASM) in a cookie, then reload into it
+    app.MapGet("/render-mode/{key}", (HttpContext context, string key, string? redirectTo) => {
+        var mode = RenderModeDef.GetOrDefault(key);
+        context.Response.Cookies.Append("RenderMode", mode.Key, new CookieOptions {
+            HttpOnly = true,
+            IsEssential = true,
+            SameSite = SameSiteMode.Lax,
+            MaxAge = TimeSpan.FromDays(365),
+        });
+        return Results.Redirect(string.IsNullOrEmpty(redirectTo) ? "/" : redirectTo);
+    });
 }

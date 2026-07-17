@@ -1,12 +1,8 @@
 namespace TownHall;
 
-public interface IRoomStats : IComputeService
+public interface IRoomStats
 {
     // Open questions ranked by RecentVoteCount desc (ties: higher total votes first); entries with
     // RecentVoteCount == 0 excluded. "Recent" = active votes cast within the trailing 5 minutes.
-    [ComputeMethod(InvalidationDelay = 0.5)]
-    Task<ImmutableArray<TrendingQuestion>> ListTrending(Session session, string roomId, int limit, CancellationToken cancellationToken = default);
-
-    [ComputeMethod]
-    Task<RoomStats> GetStats(Session session, string roomId, CancellationToken cancellationToken = default);
+    IAsyncEnumerable<ImmutableArray<TrendingQuestion>> ListTrending(string roomId, int limit, CancellationToken cancellationToken = default);
 }

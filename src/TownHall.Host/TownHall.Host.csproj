@@ -14,11 +14,9 @@
     <ProjectReference Include="..\TownHall.UI\TownHall.UI.csproj" />
   </ItemGroup>
 
-  <!-- Fusion packages -->
+  <!-- SignalR packages -->
   <ItemGroup>
-    <PackageReference Include="ActualLab.Fusion.EntityFramework" />
-    <PackageReference Include="ActualLab.Fusion.EntityFramework.Npgsql" />
-    <PackageReference Include="ActualLab.Fusion.Server" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Protocols.MessagePack" />
   </ItemGroup>
 
   <!-- Other packages -->
@@ -26,11 +24,6 @@
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" />
     <PackageReference Include="Fido2" />
     <PackageReference Include="Fido2.AspNet" />
-  </ItemGroup>
-
-  <!-- Source generators -->
-  <ItemGroup>
-    <PackageReference Include="ActualLab.Generators" PrivateAssets="all" />
   </ItemGroup>
 
 </Project>

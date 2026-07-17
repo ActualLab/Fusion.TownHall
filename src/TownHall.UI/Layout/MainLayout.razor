@@ -1,7 +1,7 @@
+@using Microsoft.AspNetCore.SignalR.Client
 @inherits LayoutComponentBase
 @implements IDisposable
-@inject UIActionFailureTracker UIActionFailureTracker
-@inject ISnackbar Snackbar
+@inject IServiceProvider Services
 @inject TownHall.UI.Services.LayoutState LayoutState
 @inject NavigationManager Nav
 
@@ -33,6 +33,12 @@
     </MudAppBar>
     <MudMainContent Class="pt-16 pa-4">
         <MudContainer MaxWidth="MaxWidth.Large">
+            @* The custom banner covers the WASM hub connection; in Server/Auto the Blazor circuit has its own reconnect UI *@
+            @if (_client?.State == HubConnectionState.Reconnecting) {
+                <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-3">
+                    Connection lost — reconnecting…
+                </MudAlert>
+            }
             @Body
         </MudContainer>
     </MudMainContent>
@@ -46,25 +52,29 @@
 
 @code {
     private bool _isDarkMode = true;
+    private TownHallClient? _client;
 
     private bool IsHome => Nav.ToBaseRelativePath(Nav.Uri).TrimEnd('/').Length == 0;
 
     protected override void OnInitialized()
     {
-        UIActionFailureTracker.Changed += OnFailure;
-        LayoutState.Changed += OnLayoutStateChanged;
+        _client = Services.GetService<TownHallClient>(); // Present only in the WASM container
+        LayoutState.Changed += OnChanged;
+        if (_client != null)
+            _client.StateChanged += OnChanged;
         // A page (e.g. RoomPage) sets its own app-bar title; reset to the default on navigation
         Nav.LocationChanged += OnLocationChanged;
     }
 
     public void Dispose()
     {
-        UIActionFailureTracker.Changed -= OnFailure;
-        LayoutState.Changed -= OnLayoutStateChanged;
+        LayoutState.Changed -= OnChanged;
+        if (_client != null)
+            _client.StateChanged -= OnChanged;
         Nav.LocationChanged -= OnLocationChanged;
     }
 
-    private void OnLayoutStateChanged()
+    private void OnChanged()
         => _ = InvokeAsync(StateHasChanged);
 
     private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
@@ -73,13 +83,4 @@
         LayoutState.SetTitle(null);
         _ = InvokeAsync(StateHasChanged);
     }
-
-    // Failed commands (validation errors, rejected owner actions, etc.) surface as snackbars
-    private void OnFailure()
-        => _ = InvokeAsync(() => {
-            foreach (var failure in UIActionFailureTracker.Items) {
-                Snackbar.Add(failure.Error?.Message ?? "Action failed.", Severity.Error);
-                UIActionFailureTracker.Remove(failure);
-            }
-        });
 }

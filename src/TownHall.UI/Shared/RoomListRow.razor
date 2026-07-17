@@ -1,14 +1,12 @@
 @using TownHall.UI.Services
-@inherits ComputedStateComponent<RoomListRow.Model>
+@inherits StateComponent<RoomCard?>
 @inject IRooms Rooms
-@inject IRoomStats RoomStats
-@inject IMood Mood
 
 @{
-    var m = State.ValueOrDefault;
+    var m = State;
     if (m?.Room is not { } room)
         return;
-    var questionCount = m.Stats.OpenQuestionCount + m.Stats.ResolvedQuestionCount;
+    var questionCount = m.QuestionCount;
 }
 
 <MudPaper Class="pa-3 mb-2" Elevation="1">
@@ -22,7 +20,7 @@
         <MudText Typo="Typo.body2" Class="mud-text-secondary">@TimeLabel(room)</MudText>
         <MudText Typo="Typo.body2" Class="mud-text-secondary">
             @questionCount @(questionCount == 1 ? "question" : "questions")
-            · @m.Stats.AudienceCount here
+            · @m.AudienceCount here
             · mood @MoodEmoji(m.AverageMood)
         </MudText>
     </MudStack>
@@ -33,24 +31,14 @@
 
     [Parameter, EditorRequired] public string RoomId { get; set; } = "";
 
-    protected override async Task<Model> ComputeState(CancellationToken cancellationToken)
-    {
-        var room = await Rooms.Get(Session, RoomId, cancellationToken);
-        if (room == null)
-            return new Model(null, new RoomStats(0, 0, 0, 0), null);
+    protected override object? StateKey => RoomId;
 
-        var stats = await RoomStats.GetStats(Session, RoomId, cancellationToken);
-        var mood = await Mood.GetSummary(Session, RoomId, cancellationToken);
-        return new Model(room, stats, mood.Average);
-    }
+    protected override IAsyncEnumerable<RoomCard?> Stream(CancellationToken cancellationToken)
+        => Rooms.GetCard(RoomId, cancellationToken);
 
     private static string TimeLabel(Room room)
         => room.Status == RoomStatus.Ended ? "ended" : TimeText.Left(room.EndsAt - (room.PausedAt ?? Moment.Now));
 
     private static string MoodEmoji(double? average)
         => average is { } a ? Emojis[Math.Clamp((int)Math.Round(a), 1, 5) - 1] : "—";
-
-    // Nested types
-
-    public sealed record Model(Room? Room, RoomStats Stats, double? AverageMood);
 }

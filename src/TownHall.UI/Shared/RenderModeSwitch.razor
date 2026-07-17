@@ -1,9 +1,32 @@
-@inject RenderModeHelper RenderModeHelper
+@inject RenderModeState RenderModeState
+@inject NavigationManager Nav
 
-<MudMenu Label="@RenderModeHelper.GetCurrentModeTitle()"
+<MudMenu Label="@Title"
          Color="Color.Inherit" Size="Size.Small"
          EndIcon="@Icons.Material.Filled.KeyboardArrowDown">
     @foreach (var mode in RenderModeDef.All) {
-        <MudMenuItem OnClick="@(() => RenderModeHelper.ChangeMode(mode))">@mode.Title</MudMenuItem>
+        <MudMenuItem OnClick="@(() => ChangeMode(mode))">@mode.Title</MudMenuItem>
     }
 </MudMenu>
+
+@code {
+    private string Title {
+        get {
+            var current = RenderModeState.Current;
+            // For Auto, also show where it actually landed this session
+            return current.Key == "a"
+                ? $"{current.Title} ({(OperatingSystem.IsBrowser() ? "WASM" : "Server")})"
+                : current.Title;
+        }
+    }
+
+    private void ChangeMode(RenderModeDef mode)
+    {
+        if (mode.Key == RenderModeState.Current.Key)
+            return;
+
+        // The endpoint persists the choice in a cookie; the forced reload re-renders in the new mode
+        var url = $"/render-mode/{mode.Key}?redirectTo={Uri.EscapeDataString(Nav.Uri)}";
+        Nav.NavigateTo(url, forceLoad: true);
+    }
+}

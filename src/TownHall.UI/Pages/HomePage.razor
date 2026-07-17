@@ -1,18 +1,17 @@
 @page "/"
-@inherits ComputedStateComponent<HomePage.Model>
+@inherits StateComponent<LobbyView>
 @inject IRooms Rooms
-@inject IUsers Users
 @inject ISnackbar Snackbar
 
 @{
-    var isSignedIn = State.ValueOrDefault?.IsSignedIn ?? false;
+    var isSignedIn = State?.IsSignedIn ?? false;
 }
 
 <PageTitle>Town Hall</PageTitle>
 
 <MudText Class="mb-6" Typo="Typo.body1">
     A live-audience Q&amp;A and mood tracker built with
-    <MudLink Href="https://github.com/ActualLab/Fusion" Target="_blank" Typo="Typo.body1">Fusion</MudLink>.
+    <MudLink Href="https://learn.microsoft.com/aspnet/core/signalr" Target="_blank" Typo="Typo.body1">SignalR</MudLink>.
     Create a town hall, share its link, and let your audience post and upvote questions while the
     room's mood updates live. The full source is
     <MudLink Href="https://github.com/ActualLab/Fusion.TownHall" Target="_blank" Typo="Typo.body1">on GitHub</MudLink>.
@@ -73,7 +72,7 @@ else {
 }
 
 <MudText Typo="Typo.h6" GutterBottom="true">Active &amp; recent town halls</MudText>
-@if (State.ValueOrDefault is { RoomIds.IsDefault: false } m) {
+@if (State is { RoomIds.IsDefault: false } m) {
     var roomIds = m.RoomIds;
     @if (roomIds.Length == 0) {
         <MudText Typo="Typo.body2" Class="mud-text-secondary">
@@ -103,37 +102,26 @@ else {
     private const int PageSize = 100;
     private int _limit = PageSize;
 
-    protected override void OnInitialized()
-    {
-        // Local fields (title, post-create panel, etc.) change via events,
-        // which don't re-render state-driven components by default
-        MustRenderAfterEvent = true;
-    }
+    protected override IAsyncEnumerable<LobbyView> Stream(CancellationToken cancellationToken)
+        => Rooms.GetLobby(_limit, cancellationToken);
 
-    protected override async Task<Model> ComputeState(CancellationToken cancellationToken)
-    {
-        var roomIds = await Rooms.ListRooms(Session, _limit, cancellationToken);
-        var isSignedIn = await Users.GetOwn(Session, cancellationToken) != null;
-        return new Model(roomIds, isSignedIn);
-    }
-
-    // The list is capped at _limit; growing it recomputes the state with a larger page
+    // The list is capped at _limit; growing it re-subscribes the stream with a larger page
     private void ShowMore()
     {
         _limit += PageSize;
-        _ = State.Recompute();
+        Restart();
     }
 
     private async Task Create()
     {
         var command = new Rooms_Create(
-            Session, _title, TimeSpan.FromMinutes(_durationMinutes), _isPrivate, _link, _description);
-        var result = await UICommander.Run(command);
+            _title, TimeSpan.FromMinutes(_durationMinutes), _isPrivate, _link, _description);
+        var result = await UICommander.Run(() => Rooms.Create(command));
         if (result.HasError)
             return;
 
         _createdRoom = result.Value;
-        _createdOwnerToken = await Rooms.GetOwnerToken(Session, result.Value.Id);
+        _createdOwnerToken = await Rooms.GetOwnerToken(result.Value.Id);
         _title = "";
         _link = "";
         _description = "";
@@ -150,8 +138,4 @@ else {
         await JS.InvokeVoidAsync("townHall.copyText", text);
         Snackbar.Add($"{what} copied to clipboard", Severity.Success);
     }
-
-    // Nested types
-
-    public sealed record Model(ImmutableArray<string> RoomIds, bool IsSignedIn);
 }

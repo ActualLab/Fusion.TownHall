@@ -1,11 +1,10 @@
 namespace TownHall;
 
 // Backend room-stats aggregation. Read-only; composes on IQuestionsBackend + IPresenceBackend.
-public interface IRoomStatsBackend : IComputeService, IBackendService
+// ReadTrending returns the value plus the moment the ranking next changes on its own (a vote aging
+// out of the trailing window).
+public interface IRoomStatsBackend
 {
-    [ComputeMethod]
-    Task<ImmutableArray<TrendingQuestion>> ListTrending(string roomId, int limit, CancellationToken cancellationToken = default);
-
-    [ComputeMethod]
-    Task<RoomStats> GetStats(string roomId, CancellationToken cancellationToken = default);
+    Task<(ImmutableArray<TrendingQuestion> Value, Moment? NextChange)> ReadTrending(
+        string roomId, int limit, CancellationToken cancellationToken = default);
 }

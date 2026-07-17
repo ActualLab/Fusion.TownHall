@@ -42,6 +42,31 @@ same `-v1` across all framework branches matches feature-wise, so those points
 are directly comparable. These are **tags, not branches** — fixed pointers we
 never move.
 
+# Architectural invariants — do not change these
+
+These are deliberate, load-bearing decisions that hold on **every** version
+branch. Do not "simplify" them away; if one seems wrong, ask the user instead
+of changing it.
+
+- **Command records for every action.** All user/API actions and backend write
+  operations take a `Xxx_Yyy` command record (`Rooms_Create`, `Questions_Post`,
+  `PresenceBackend_Watch`, ...), even where plain parameters would work. In the
+  Fusion version commands are required by the framework; every other version
+  keeps them deliberately — for user-action dedup, future command queues, and
+  structural parity across branches. **Never replace a command record with raw
+  arguments.** (Don't mirror `main`'s one raw-args exception,
+  `IPresenceBackend.OnWatch`, on other branches.)
+- **Frontend/backend service split.** `TownHall.Api` (frontend interfaces) vs
+  `TownHall.Backend` (backend interfaces): the frontend enforces identity
+  (sign-in, ownership); the backend is id-based, assumes an authorized caller,
+  and owns argument/status validation. Don't move checks across that line.
+- **Cross-branch naming parity.** A version branch names its API after `main`'s:
+  read methods take `main`'s exact names; write methods take `main`'s name minus
+  the Fusion `On` prefix (`OnPost` → `Post`, `OnCreate` → `Create`). Command
+  records, their parameter names, and member order match `main` wherever the
+  framework doesn't force a difference. The full alignment convention lives in
+  [.claude/commands/rebase-branches.md](.claude/commands/rebase-branches.md).
+
 # Database & migrations
 
 The app is PostgreSQL-only. The EF Core model (entities + `AppDbContext`)

@@ -73,6 +73,34 @@ SHARED_BASE=(AGENTS.md CLAUDE.md AGENTS-Source.md AGENTS-Suffix.md CODING_STYLE.
 SHARED_BASE=($(for p in "${SHARED_BASE[@]}"; do git cat-file -e "main:$p" 2>/dev/null && echo "$p"; done))
 ```
 
+## Code alignment — keep the diff a pure framework delta
+
+`git diff main <branch>` must read as *only* the framework swap. Whenever a
+shared feature lands on both branches (or drift is noticed), align the branch
+to `main` file-by-file before rebasing:
+
+- **Comments**: where the two branches do the same thing, the comment must be
+  byte-identical to `main`'s — same wording, same wrapping, same placement.
+  Keep only the clauses that describe genuinely framework-specific machinery,
+  and never copy Fusion-specific references into a non-Fusion branch.
+- **Names**: read methods use `main`'s exact names; write methods use `main`'s
+  name minus the Fusion `On` prefix (`OnPost` → `Post`, `OnCreate` → `Create`).
+  Command records and their parameters match `main` (`QuestionIndex`, not
+  `Index`). Locals, helpers, test names (also `On`-stripped), and test data
+  match `main`'s counterparts. SignalR hub methods (and client invocation
+  strings) reuse the service method names verbatim.
+- **Member order**: same order as `main`'s counterpart file; branch-only
+  members slot in next to their nearest relatives.
+- **Files**: same file names and layout for same-purpose code; branch-only
+  files (hubs, stream plumbing) are expected.
+- **Formatting**: `main`'s command-record layout (one param per line),
+  blank-line placement, and error-message texts.
+- **Never delete command records** while aligning — they're a deliberate
+  invariant (see AGENTS.md → "Architectural invariants").
+
+If `main` itself has a stale or wrong comment, fix it on `main` first (its own
+commit), then mirror the fix through the alignment — don't fork the wording.
+
 ## Preconditions
 
 - `main` already holds the intended commits (commit any backport/shared-base

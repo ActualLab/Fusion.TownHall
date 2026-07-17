@@ -5,7 +5,7 @@
 <MudPaper Class="pa-3 mb-4" Elevation="1">
     <MudText Typo="Typo.subtitle1" Class="mb-2">Your question</MudText>
     @if (!IsSignedIn) {
-        <MudAlert Severity="Severity.Info" Dense="true">Sign in with a passkey to post a question.</MudAlert>
+        <MudAlert Severity="Severity.Info" Dense="true">Sign in to post a question.</MudAlert>
     }
     else {
         <MudTextField @bind-Value="_text" Immediate="true" Lines="2" MaxLength="500" Counter="500"

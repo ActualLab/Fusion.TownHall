@@ -27,7 +27,7 @@ else {
 
         var session = await CircuitHub.SessionResolver.GetSession();
         if (await Services.GetRequiredService<IUsers>().GetOwnUserId(session) == null) {
-            _error = "Please sign in with a passkey (top-right), then open this owner link again.";
+            _error = "Please sign in (top-right), then open this owner link again.";
             StateHasChanged();
             return;
         }

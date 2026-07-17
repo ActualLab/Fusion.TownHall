@@ -9,7 +9,7 @@ public class AppDbContext(DbContextOptions options) : DbContextBase(options)
     // The local docker-compose Postgres; HostSettings.PostgreSql and the design-time
     // factory both default to it.
     public const string DefaultConnectionString =
-        "Server=localhost;Database=townhall;Port=5432;User Id=postgres;Password=postgres";
+        "Server=127.0.0.1;Database=townhall;Port=5432;User Id=postgres;Password=postgres";
 
     public DbSet<DbRoom> Rooms { get; protected set; } = null!;
     public DbSet<DbRoomOwner> RoomOwners { get; protected set; } = null!;

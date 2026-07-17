@@ -1,27 +1,37 @@
+using Microsoft.EntityFrameworkCore;
+using TownHall.Db;
+
 namespace TownHall.Host.Services;
 
 // Frontend mood service: the summary is open to guests; a guest has no own mood and can't set one.
-public class MoodService(IServiceProvider services) : IMood
+public sealed class MoodService(ServerShared shared, Identity identity)
+    : ServerService(shared, identity), IMood
 {
-    private IMoodBackend Backend => field ??= services.GetRequiredService<IMoodBackend>();
-    private IUsersBackend Users => field ??= services.GetRequiredService<IUsersBackend>();
-    private ICommander Commander => field ??= services.Commander();
+    public IAsyncEnumerable<MoodView> GetSummary(string roomId, CancellationToken cancellationToken = default)
+        => Stream([$"room:{roomId}", SessionScope], ct => ReadSummary(roomId, ct), cancellationToken);
 
-    public virtual Task<MoodSummary> GetSummary(Session session, string roomId, CancellationToken cancellationToken = default)
-        => Backend.GetSummary(roomId, cancellationToken);
-
-    public virtual async Task<int?> GetOwn(Session session, string roomId, CancellationToken cancellationToken = default)
+    public async Task SetMood(Mood_Set command, CancellationToken cancellationToken = default)
     {
-        var userId = await Users.GetUserIdBySession(session.Id, cancellationToken).ConfigureAwait(false);
-        return userId == null
-            ? null
-            : await Backend.GetOwn(roomId, userId, cancellationToken).ConfigureAwait(false);
+        var (roomId, level) = command;
+        var userId = await RequireUserId(cancellationToken).ConfigureAwait(false);
+        await Shared.Mood.SetMood(new MoodBackend_Set(roomId, userId, level), cancellationToken).ConfigureAwait(false);
     }
 
-    public virtual async Task SetMood(Mood_Set command, CancellationToken cancellationToken = default)
+    // Private methods
+
+    private async Task<(MoodView Value, TimeSpan? Wake)> ReadSummary(string roomId, CancellationToken cancellationToken)
     {
-        var (session, roomId, level) = command;
-        var userId = (await Users.GetUserIdBySession(session.Id, cancellationToken).ConfigureAwait(false)).RequireSignedIn();
-        await Commander.Call(new MoodBackend_Set(roomId, userId, level), true, cancellationToken).ConfigureAwait(false);
+        var (summary, nextExpiry) = await Shared.Mood.ReadSummary(roomId, cancellationToken).ConfigureAwait(false);
+        var userId = await GetUserId(cancellationToken).ConfigureAwait(false);
+        int? ownLevel = null;
+        if (userId != null) {
+            var dbContext = await CreateDbContext(cancellationToken).ConfigureAwait(false);
+            await using var _1 = dbContext.ConfigureAwait(false);
+            ownLevel = await dbContext.Moods
+                .Where(m => m.RoomId == roomId && m.UserId == userId)
+                .Select(m => (int?)m.Level)
+                .FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
+        }
+        return (new MoodView(summary, ownLevel), ToWake(nextExpiry));
     }
 }

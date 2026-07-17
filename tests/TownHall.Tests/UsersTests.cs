@@ -1,66 +1,54 @@
 namespace TownHall.Tests;
 
-public abstract class UsersTests(TestAppHost host) : TestBase(host)
+public sealed class UsersTests(TestAppHost host) : TestBase(host)
 {
     [Fact]
     public async Task GuestHasNoUser()
     {
-        var session = Session.New();
-        Assert.Null(await Users.GetOwn(session));
+        var session = NewSession();
+        Assert.Null(await GetOwn(session));
     }
 
     [Fact]
     public async Task SignInCreatesUserWithGeneratedName()
     {
         var session = await NewUser();
-        var user = await Users.GetOwn(session);
+        var user = await GetOwn(session);
         Assert.NotNull(user);
         Assert.Matches(@"^\w+ \w+$", user!.Name);
-        // Get(userId) returns the public projection anyone can read
-        Assert.Equal(user.Name, (await Users.Get(session, user.Id))!.Name);
     }
 
     [Fact]
     public async Task SetNameChangesName()
     {
         var session = await NewUser();
-        await Call(new Users_SetName(session, "  Alice  "));
-        var user = await ReadWhen(() => Users.GetOwn(session), u => u?.Name == "Alice");
+        await For(session).Users.SetName(new Users_SetName("  Alice  "));
+        var user = await GetOwn(session);
         Assert.Equal("Alice", user!.Name);
         await Assert.ThrowsAsync<ArgumentException>(
-            () => Call(new Users_SetName(session, "   ")));
+            () => For(session).Users.SetName(new Users_SetName("   ")));
         await Assert.ThrowsAsync<ArgumentException>(
-            () => Call(new Users_SetName(session, new string('x', 31))));
+            () => For(session).Users.SetName(new Users_SetName(new string('x', 31))));
     }
 
     [Fact]
     public async Task GuestCannotActButCanRead()
     {
-        var guest = Session.New();
+        var guest = NewSession();
         var owner = await NewUser();
         var room = await CreateRoom(owner);
 
         // Every write path rejects a guest
         await Assert.ThrowsAsync<UnauthorizedAccessException>(
-            () => Call(new Users_SetName(guest, "Nope")));
+            () => For(guest).Users.SetName(new Users_SetName("Nope")));
         await Assert.ThrowsAsync<UnauthorizedAccessException>(
-            () => Call(new Rooms_Create(guest, "Nope", TimeSpan.FromHours(1))));
+            () => For(guest).Rooms.Create(new Rooms_Create("Nope", TimeSpan.FromHours(1))));
         await Assert.ThrowsAsync<UnauthorizedAccessException>(
-            () => Call(new Questions_Post(guest, room.Id, "Nope?")));
+            () => For(guest).Questions.Post(new Questions_Post(room.Id, "Nope?")));
 
         // A guest can read, and doesn't get counted as present
-        Assert.NotNull(await Rooms.Get(guest, room.Id));
-        await Call(new Presence_Watch(guest, room.Id));
-        Assert.Equal(0, await Presence.GetAudienceCount(guest, room.Id));
+        Assert.NotNull(await GetRoom(guest, room.Id));
+        await For(guest).Presence.Watch(new Presence_Watch(room.Id));
+        Assert.Equal(0, await GetAudience(guest, room.Id));
     }
-}
-
-public sealed class UsersServerTests(TestAppHost host) : UsersTests(host)
-{
-    protected override IServiceProvider TestServices => Host.Services;
-}
-
-public sealed class UsersClientTests(TestAppHost host) : UsersTests(host)
-{
-    protected override IServiceProvider TestServices => Host.ClientServices;
 }

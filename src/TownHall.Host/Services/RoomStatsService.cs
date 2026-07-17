@@ -1,13 +1,13 @@
 namespace TownHall.Host.Services;
 
 // Frontend room-stats service: read-only, open to guests; delegates straight to IRoomStatsBackend.
-public class RoomStatsService(IServiceProvider services) : IRoomStats
+public sealed class RoomStatsService(ServerShared shared, Identity identity)
+    : ServerService(shared, identity), IRoomStats
 {
-    private IRoomStatsBackend Backend => field ??= services.GetRequiredService<IRoomStatsBackend>();
-
-    public virtual Task<ImmutableArray<TrendingQuestion>> ListTrending(Session session, string roomId, int limit, CancellationToken cancellationToken = default)
-        => Backend.ListTrending(roomId, limit, cancellationToken);
-
-    public virtual Task<RoomStats> GetStats(Session session, string roomId, CancellationToken cancellationToken = default)
-        => Backend.GetStats(roomId, cancellationToken);
+    public IAsyncEnumerable<ImmutableArray<TrendingQuestion>> ListTrending(
+        string roomId, int limit, CancellationToken cancellationToken = default)
+        => Stream($"room:{roomId}", async ct => {
+            var (value, nextChange) = await Shared.RoomStats.ReadTrending(roomId, limit, ct).ConfigureAwait(false);
+            return (value, ToWake(nextChange));
+        }, cancellationToken);
 }

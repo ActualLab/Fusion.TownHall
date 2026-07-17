@@ -1,45 +1,35 @@
-using ActualLab.Fusion.Blazor;
-using ActualLab.Fusion.UI;
-using ActualLab.Rpc;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using MudBlazor.Services;
+using TownHall.UI.Services;
 
 namespace TownHall.UI;
 
 public static class ClientStartup
 {
+    // WASM container: the SignalR connection + client-side (hub-routing) implementations of the interfaces.
     public static void ConfigureServices(IServiceCollection services, WebAssemblyHostBuilder builder)
     {
         var logging = builder.Logging;
         logging.SetMinimumLevel(LogLevel.Warning);
         logging.AddFilter(typeof(App).Namespace, LogLevel.Debug);
 
-        // Fusion services
-        var fusion = services.AddFusion();
-        fusion.Rpc.AddWebSocketClient(builder.HostEnvironment.BaseAddress);
-
-        // RPC clients - only the frontend services are exposed over RPC
-        fusion.AddClient<IUsers>();
-        fusion.AddClient<IAuth>();
-        fusion.AddClient<IRooms>();
-        fusion.AddClient<IQuestions>();
-        fusion.AddClient<IRoomStats>();
-        fusion.AddClient<IPresence>();
-        fusion.AddClient<IMood>();
+        services.AddScoped<TownHallClient>();
+        services.AddScoped<IUsers, UsersClient>();
+        services.AddScoped<IAuth, AuthClient>();
+        services.AddScoped<IRooms, RoomsClient>();
+        services.AddScoped<IQuestions, QuestionsClient>();
+        services.AddScoped<IRoomStats, RoomStatsClient>();
+        services.AddScoped<IPresence, PresenceClient>();
+        services.AddScoped<IMood, MoodClient>();
 
         ConfigureSharedServices(services);
     }
 
     // Shared services configured on both the client and the server.
-    // On the server, fusion.AddBlazor() must follow services.AddServerSideBlazor().
     public static void ConfigureSharedServices(IServiceCollection services)
     {
-        // The contracts carry MessagePack attributes only, so RPC must not default to MemoryPack
-        RpcSerializationFormatResolver.Default = new("msgpack6c");
-
-        var fusion = services.AddFusion();
-        fusion.AddBlazor();
-        services.AddScoped<IUpdateDelayer>(c => new UpdateDelayer(c.UIActionTracker(), 0.25)); // 0.25s
+        services.AddScoped<TownHall.UI.Services.RenderModeState>();
+        services.AddScoped<TownHall.UI.Services.UiCommander>();
         services.AddScoped<TownHall.UI.Services.LayoutState>();
         services.AddScoped<TownHall.UI.Services.PasskeyClient>();
         services.AddMudServices();

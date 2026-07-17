@@ -1,5 +1,5 @@
 @using TownHall.UI.Services
-@inherits ComputedStateComponent<string?>
+@inherits AppComponentBase
 @inject IRooms Rooms
 @inject ISnackbar Snackbar
 
@@ -15,7 +15,7 @@
                          Disabled="@IsEnded" Label="Private" />
             <MudSpacer />
             <MudButton Variant="Variant.Text" Size="Size.Small" StartIcon="@Icons.Material.Filled.ContentCopy"
-                       Disabled="@(State.ValueOrDefault == null)"
+                       Disabled="@(_ownerToken == null)"
                        OnClick="CopyOwnerLink">
                 Copy owner link
             </MudButton>
@@ -55,6 +55,7 @@
     private string _title = "";
     private string _link = "";
     private string _description = "";
+    private string? _ownerToken;
 
     [Parameter, EditorRequired] public Room Room { get; set; } = null!;
 
@@ -62,34 +63,31 @@
 
     protected override void OnInitialized()
     {
-        // The edit fields and panel expansion are local state changed via events
-        MustRenderAfterEvent = true;
         _title = Room.Title;
         _link = Room.Link;
         _description = Room.Description;
     }
 
-    protected override async Task<string?> ComputeState(CancellationToken cancellationToken)
-    {
-        return await Rooms.GetOwnerToken(Session, Room.Id, cancellationToken);
-    }
+    protected override async Task OnInitializedAsync()
+        // The owner token never changes for a room, so a single fetch is enough
+        => _ownerToken = await Rooms.GetOwnerToken(Room.Id);
 
     private Task SetIsPrivate(bool isPrivate)
-        => UICommander.Run(new Rooms_SetIsPrivate(Session, Room.Id, isPrivate));
+        => UICommander.Run(() => Rooms.SetIsPrivate(new Rooms_SetIsPrivate(Room.Id, isPrivate)));
 
     private Task Rename()
-        => UICommander.Run(new Rooms_SetTitle(Session, Room.Id, _title));
+        => UICommander.Run(() => Rooms.SetTitle(new Rooms_SetTitle(Room.Id, _title)));
 
     private Task SaveLink()
-        => UICommander.Run(new Rooms_SetLink(Session, Room.Id, _link));
+        => UICommander.Run(() => Rooms.SetLink(new Rooms_SetLink(Room.Id, _link)));
 
     private Task SaveDescription()
-        => UICommander.Run(new Rooms_SetDescription(Session, Room.Id, _description));
+        => UICommander.Run(() => Rooms.SetDescription(new Rooms_SetDescription(Room.Id, _description)));
 
     private async Task CopyOwnerLink()
     {
         // The owner link is never displayed — it goes straight to the clipboard
-        if (State.ValueOrDefault is not { } token)
+        if (_ownerToken is not { } token)
             return;
 
         var url = Nav.ToAbsoluteUri($"/room/{Room.Id}/own/{token}").ToString();

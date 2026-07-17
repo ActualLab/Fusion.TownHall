@@ -1,13 +1,10 @@
 @using TownHall.UI.Services
-@inherits ComputedStateComponent<QuestionCard.Model>
+@inherits AppComponentBase
 @inject IQuestions Questions
-@inject IUsers Users
 
 @{
-    var m = State.ValueOrDefault;
-    if (m?.Question is not { } question)
-        return;
-
+    var m = View;
+    var question = m.Question;
     var isResolved = m.Resolution != null;
 }
 
@@ -20,7 +17,7 @@
     }
     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
         <MudText Typo="Typo.caption" Class="mud-text-secondary">
-            — by <UserName UserId="@question.AuthorId" /> · @TimeText.Ago(question.PostedAt)
+            — by @m.AuthorName · @TimeText.Ago(question.PostedAt)
         </MudText>
         <MudSpacer />
         @if (IsOwner) {
@@ -42,11 +39,11 @@
                 }
             }
         }
-        <MudTooltip Text="@(m.IsSignedIn ? "" : "Sign in to vote")" Disabled="@m.IsSignedIn">
+        <MudTooltip Text="@(IsSignedIn ? "" : "Sign in to vote")" Disabled="@IsSignedIn">
             <MudButton StartIcon="@Icons.Material.Filled.ThumbUp" Size="Size.Small"
                        Variant="@(m.HasOwnVote ? Variant.Filled : Variant.Outlined)"
                        Color="Color.Primary"
-                       Disabled="@(!IsLive || isResolved || !m.IsSignedIn)"
+                       Disabled="@(!IsLive || isResolved || !IsSignedIn)"
                        OnClick="ToggleVote">
                 @m.VoteCount
             </MudButton>
@@ -70,49 +67,26 @@
     private string _note = "";
 
     [Parameter, EditorRequired] public string RoomId { get; set; } = "";
-    [Parameter, EditorRequired] public long Index { get; set; }
+    [Parameter, EditorRequired] public QuestionView View { get; set; } = null!;
     [Parameter] public bool IsOwner { get; set; }
     [Parameter] public bool IsEnded { get; set; }
     [Parameter] public bool IsLive { get; set; }
+    [Parameter] public bool IsSignedIn { get; set; }
 
-    protected override void OnInitialized()
-    {
-        // The resolve form and delete confirmation are local state changed via events
-        MustRenderAfterEvent = true;
-    }
-
-    protected override async Task<Model> ComputeState(CancellationToken cancellationToken)
-    {
-        var question = await Questions.Get(Session, RoomId, Index, cancellationToken);
-        if (question == null)
-            return new Model(null, 0, false, null, false);
-
-        var voteCount = await Questions.GetVoteCount(Session, RoomId, Index, cancellationToken);
-        var hasOwnVote = await Questions.HasOwnVote(Session, RoomId, Index, cancellationToken);
-        var resolution = await Questions.GetResolution(Session, RoomId, Index, cancellationToken);
-        var isSignedIn = await Users.GetOwn(Session, cancellationToken) != null;
-        return new Model(question, voteCount, hasOwnVote, resolution, isSignedIn);
-    }
+    private long Index => View.Question.Index;
 
     private Task ToggleVote()
-    {
-        var hasOwnVote = State.ValueOrDefault?.HasOwnVote ?? false;
-        return UICommander.Run(new Questions_Vote(Session, RoomId, Index, !hasOwnVote));
-    }
+        => UICommander.Run(() => Questions.Vote(new Questions_Vote(RoomId, Index, !View.HasOwnVote)));
 
     private Task Resolve()
     {
         _isResolving = false;
-        return UICommander.Run(new Questions_Resolve(Session, RoomId, Index, _note));
+        return UICommander.Run(() => Questions.Resolve(new Questions_Resolve(RoomId, Index, _note)));
     }
 
     private Task Delete()
     {
         _isConfirmingDelete = false;
-        return UICommander.Run(new Questions_Delete(Session, RoomId, Index));
+        return UICommander.Run(() => Questions.Delete(new Questions_Delete(RoomId, Index)));
     }
-
-    // Nested types
-
-    public sealed record Model(Question? Question, int VoteCount, bool HasOwnVote, Resolution? Resolution, bool IsSignedIn);
 }

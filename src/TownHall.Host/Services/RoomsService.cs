@@ -2,99 +2,125 @@ namespace TownHall.Host.Services;
 
 // Frontend room service: resolves the caller, enforces sign-in / ownership, then delegates to
 // IRoomsBackend. Reads are open to guests; writes require sign-in and (where noted) ownership.
-public class RoomsService(IServiceProvider services) : IRooms
+public sealed class RoomsService(ServerShared shared, Identity identity)
+    : ServerService(shared, identity), IRooms
 {
-    private IRoomsBackend Backend => field ??= services.GetRequiredService<IRoomsBackend>();
-    private IUsersBackend Users => field ??= services.GetRequiredService<IUsersBackend>();
-    private ICommander Commander => field ??= services.Commander();
+    public IAsyncEnumerable<RoomView?> Get(string roomId, CancellationToken cancellationToken = default)
+        => Stream([$"room:{roomId}", SessionScope], ct => ReadRoomView(roomId, ct), cancellationToken);
 
-    public virtual Task<Room?> Get(Session session, string roomId, CancellationToken cancellationToken = default)
-        => Backend.Get(roomId, cancellationToken);
+    public IAsyncEnumerable<ImmutableArray<string>> ListRooms(int limit, CancellationToken cancellationToken = default)
+        => Stream("lobby", async ct => {
+            var (ids, nextChange) = await Shared.Rooms.ListRoomIds(limit, ct).ConfigureAwait(false);
+            return (ids, ToWake(nextChange));
+        }, cancellationToken);
 
-    public virtual async Task<ImmutableArray<string>> ListRooms(Session session, int limit, CancellationToken cancellationToken = default)
+    public IAsyncEnumerable<LobbyView> GetLobby(int limit, CancellationToken cancellationToken = default)
+        => Stream(["lobby", SessionScope], async ct => {
+            var (ids, nextChange) = await Shared.Rooms.ListRoomIds(limit, ct).ConfigureAwait(false);
+            var isSignedIn = await GetUserId(ct).ConfigureAwait(false) != null;
+            return (new LobbyView(ids, isSignedIn), ToWake(nextChange));
+        }, cancellationToken);
+
+    public IAsyncEnumerable<RoomCard?> GetCard(string roomId, CancellationToken cancellationToken = default)
+        => Stream($"room:{roomId}", async ct => {
+            var (card, nextChange) = await Shared.Rooms.ReadRoomCard(roomId, ct).ConfigureAwait(false);
+            return (card, ToWake(nextChange));
+        }, cancellationToken);
+
+    public async Task<string?> GetOwnerToken(string roomId, CancellationToken cancellationToken = default)
     {
-        var ids = await Backend.ListRoomIds(cancellationToken).ConfigureAwait(false);
-        return limit < ids.Length ? ids[..limit] : ids;
-    }
-
-    public virtual async Task<bool> IsOwner(Session session, string roomId, CancellationToken cancellationToken = default)
-    {
-        var userId = await Users.GetUserIdBySession(session.Id, cancellationToken).ConfigureAwait(false);
-        return userId != null && await Backend.IsOwner(roomId, userId, cancellationToken).ConfigureAwait(false);
-    }
-
-    public virtual async Task<string?> GetOwnerToken(Session session, string roomId, CancellationToken cancellationToken = default)
-        => await IsOwner(session, roomId, cancellationToken).ConfigureAwait(false)
-            ? await Backend.GetOwnerToken(roomId, cancellationToken).ConfigureAwait(false)
+        var userId = await GetUserId(cancellationToken).ConfigureAwait(false);
+        return userId != null && await Shared.Rooms.IsOwner(roomId, userId, cancellationToken).ConfigureAwait(false)
+            ? await Shared.Rooms.GetOwnerToken(roomId, cancellationToken).ConfigureAwait(false)
             : null;
+    }
 
-    public virtual async Task<Room> Create(Rooms_Create command, CancellationToken cancellationToken = default)
+    public async Task<Room> Create(Rooms_Create command, CancellationToken cancellationToken = default)
     {
-        var (session, title, duration, isPrivate, link, description) = command;
-        var userId = (await GetOwnUserId(session, cancellationToken).ConfigureAwait(false)).RequireSignedIn();
-        return await Commander
-            .Call(new RoomsBackend_Create(userId, title, duration, isPrivate, link, description), true, cancellationToken)
+        var (title, duration, isPrivate, link, description) = command;
+        var userId = await RequireUserId(cancellationToken).ConfigureAwait(false);
+        return await Shared.Rooms
+            .Create(new RoomsBackend_Create(userId, title, duration, isPrivate, link, description), cancellationToken)
             .ConfigureAwait(false);
     }
 
-    public virtual async Task ClaimOwnership(Rooms_ClaimOwnership command, CancellationToken cancellationToken = default)
+    public async Task ClaimOwnership(Rooms_ClaimOwnership command, CancellationToken cancellationToken = default)
     {
-        var (session, roomId, ownerToken) = command;
-        var userId = (await GetOwnUserId(session, cancellationToken).ConfigureAwait(false)).RequireSignedIn();
-        await Commander.Call(new RoomsBackend_ClaimOwnership(roomId, userId, ownerToken), true, cancellationToken).ConfigureAwait(false);
+        var (roomId, ownerToken) = command;
+        var userId = await RequireUserId(cancellationToken).ConfigureAwait(false);
+        await Shared.Rooms
+            .ClaimOwnership(new RoomsBackend_ClaimOwnership(roomId, userId, ownerToken), cancellationToken)
+            .ConfigureAwait(false);
     }
 
-    public virtual async Task SetLive(Rooms_SetLive command, CancellationToken cancellationToken = default)
+    public async Task SetLive(Rooms_SetLive command, CancellationToken cancellationToken = default)
     {
-        var (session, roomId, live) = command;
-        await RequireOwner(session, roomId, cancellationToken).ConfigureAwait(false);
-        await Commander.Call(new RoomsBackend_SetLive(roomId, live), true, cancellationToken).ConfigureAwait(false);
+        var (roomId, live) = command;
+        await RequireOwner(roomId, cancellationToken).ConfigureAwait(false);
+        await Shared.Rooms.SetLive(new RoomsBackend_SetLive(roomId, live), cancellationToken).ConfigureAwait(false);
     }
 
-    public virtual async Task SetIsPrivate(Rooms_SetIsPrivate command, CancellationToken cancellationToken = default)
+    public async Task SetIsPrivate(Rooms_SetIsPrivate command, CancellationToken cancellationToken = default)
     {
-        var (session, roomId, isPrivate) = command;
-        await RequireOwner(session, roomId, cancellationToken).ConfigureAwait(false);
-        await Commander.Call(new RoomsBackend_SetIsPrivate(roomId, isPrivate), true, cancellationToken).ConfigureAwait(false);
+        var (roomId, isPrivate) = command;
+        await RequireOwner(roomId, cancellationToken).ConfigureAwait(false);
+        await Shared.Rooms.SetIsPrivate(new RoomsBackend_SetIsPrivate(roomId, isPrivate), cancellationToken).ConfigureAwait(false);
     }
 
-    public virtual async Task SetTitle(Rooms_SetTitle command, CancellationToken cancellationToken = default)
+    public async Task SetTitle(Rooms_SetTitle command, CancellationToken cancellationToken = default)
     {
-        var (session, roomId, title) = command;
-        await RequireOwner(session, roomId, cancellationToken).ConfigureAwait(false);
-        await Commander.Call(new RoomsBackend_SetTitle(roomId, title), true, cancellationToken).ConfigureAwait(false);
+        var (roomId, title) = command;
+        await RequireOwner(roomId, cancellationToken).ConfigureAwait(false);
+        await Shared.Rooms.SetTitle(new RoomsBackend_SetTitle(roomId, title), cancellationToken).ConfigureAwait(false);
     }
 
-    public virtual async Task SetLink(Rooms_SetLink command, CancellationToken cancellationToken = default)
+    public async Task SetLink(Rooms_SetLink command, CancellationToken cancellationToken = default)
     {
-        var (session, roomId, link) = command;
-        await RequireOwner(session, roomId, cancellationToken).ConfigureAwait(false);
-        await Commander.Call(new RoomsBackend_SetLink(roomId, link), true, cancellationToken).ConfigureAwait(false);
+        var (roomId, link) = command;
+        await RequireOwner(roomId, cancellationToken).ConfigureAwait(false);
+        await Shared.Rooms.SetLink(new RoomsBackend_SetLink(roomId, link), cancellationToken).ConfigureAwait(false);
     }
 
-    public virtual async Task SetDescription(Rooms_SetDescription command, CancellationToken cancellationToken = default)
+    public async Task SetDescription(Rooms_SetDescription command, CancellationToken cancellationToken = default)
     {
-        var (session, roomId, description) = command;
-        await RequireOwner(session, roomId, cancellationToken).ConfigureAwait(false);
-        await Commander.Call(new RoomsBackend_SetDescription(roomId, description), true, cancellationToken).ConfigureAwait(false);
+        var (roomId, description) = command;
+        await RequireOwner(roomId, cancellationToken).ConfigureAwait(false);
+        await Shared.Rooms.SetDescription(new RoomsBackend_SetDescription(roomId, description), cancellationToken).ConfigureAwait(false);
     }
 
-    public virtual async Task AdjustDuration(Rooms_AdjustDuration command, CancellationToken cancellationToken = default)
+    public async Task AdjustDuration(Rooms_AdjustDuration command, CancellationToken cancellationToken = default)
     {
-        var (session, roomId, delta) = command;
-        await RequireOwner(session, roomId, cancellationToken).ConfigureAwait(false);
-        await Commander.Call(new RoomsBackend_AdjustDuration(roomId, delta), true, cancellationToken).ConfigureAwait(false);
+        var (roomId, delta) = command;
+        await RequireOwner(roomId, cancellationToken).ConfigureAwait(false);
+        await Shared.Rooms.AdjustDuration(new RoomsBackend_AdjustDuration(roomId, delta), cancellationToken).ConfigureAwait(false);
     }
 
     // Private methods
 
-    private Task<string?> GetOwnUserId(Session session, CancellationToken cancellationToken)
-        => Users.GetUserIdBySession(session.Id, cancellationToken);
-
-    private async Task RequireOwner(Session session, string roomId, CancellationToken cancellationToken)
+    private async Task<(RoomView? Value, TimeSpan? Wake)> ReadRoomView(string roomId, CancellationToken cancellationToken)
     {
-        var userId = (await GetOwnUserId(session, cancellationToken).ConfigureAwait(false)).RequireSignedIn();
-        if (!await Backend.IsOwner(roomId, userId, cancellationToken).ConfigureAwait(false))
+        var (room, roomNextChange) = await Shared.Rooms.ReadRoom(roomId, cancellationToken).ConfigureAwait(false);
+        if (room == null)
+            return (null, null);
+
+        var userId = await GetUserId(cancellationToken).ConfigureAwait(false);
+        var stats = await Shared.Rooms.ReadStats(roomId, cancellationToken).ConfigureAwait(false);
+        var isOwner = userId != null && await Shared.Rooms.IsOwner(roomId, userId, cancellationToken).ConfigureAwait(false);
+        var anonName = userId != null ? NameGenerator.New(AnonId.Of(userId, roomId)) : "";
+        var view = new RoomView(room, isOwner, stats, userId != null, anonName);
+
+        // The audience shrinks as presence expires; re-read when the earliest present user drops off
+        var nextExpiry = Presence.Present(roomId).NextExpiry;
+        Moment? nextChange = roomNextChange;
+        if (nextExpiry is { } e)
+            nextChange = nextChange is { } nc ? Moment.Min(nc, e) : e;
+        return (view, ToWake(nextChange));
+    }
+
+    private async Task RequireOwner(string roomId, CancellationToken cancellationToken)
+    {
+        var userId = await RequireUserId(cancellationToken).ConfigureAwait(false);
+        if (!await Shared.Rooms.IsOwner(roomId, userId, cancellationToken).ConfigureAwait(false))
             throw new UnauthorizedAccessException("Only town hall owners can do this.");
     }
 }

@@ -10,7 +10,7 @@ namespace Microsoft.Extensions.Hosting;
 
 // Aspire-style "service defaults": wires OpenTelemetry so the app streams logs, metrics and traces to
 // the Aspire dashboard (via OTLP) when run under the AppHost. The tracing sources are chosen so a
-// single trace shows a Fusion RPC call / command together with the exact DB commands it triggered.
+// single trace shows a hub call / stream read together with the exact DB commands it triggered.
 public static class ServiceDefaultsExtensions
 {
     public static TBuilder AddServiceDefaults<TBuilder>(this TBuilder builder)
@@ -33,11 +33,6 @@ public static class ServiceDefaultsExtensions
                 .AddAspNetCoreInstrumentation()
                 .AddHttpClientInstrumentation()
                 .AddRuntimeInstrumentation()
-                // Fusion stack metrics: RPC call error/duration, CommandR command execution, Fusion
-                // compute registry (cached/pruned computed counts)
-                .AddMeter("ActualLab.Rpc")
-                .AddMeter("ActualLab.CommandR")
-                .AddMeter("ActualLab.Fusion")
                 // PostgreSQL provider metrics: connection pool usage, bytes read/written, operation
                 // duration, prepared-statement ratio
                 .AddMeter("Npgsql")
@@ -48,12 +43,11 @@ public static class ServiceDefaultsExtensions
                 .SetSampler(new AlwaysOnSampler())
                 .AddAspNetCoreInstrumentation()
                 .AddHttpClientInstrumentation()
-                // Fusion's own spans (RPC inbound/outbound calls, command execution, EF entity resolver)
-                // and the actual DB commands (AddNpgsql) - together a trace shows an RPC call and the DB
-                // hits it triggered
-                .AddSource("ActualLab.Rpc")
-                .AddSource("ActualLab.CommandR")
-                .AddSource("ActualLab.Fusion")
+                // Custom stream-read spans, SignalR's own hub spans, and the actual DB commands
+                // (AddNpgsql) - together a trace shows a hub call / stream read and the DB hits it
+                // triggered
+                .AddSource("TownHall")
+                .AddSource("Microsoft.AspNetCore.SignalR.Server")
                 .AddNpgsql());
 
         // Under the Aspire AppHost this env var points at the dashboard's OTLP receiver

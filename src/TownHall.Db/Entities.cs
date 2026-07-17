@@ -54,7 +54,7 @@ public class DbPasskeyCredential // Key = base64url credential id
     public DateTime CreatedAt { get; set; }
 }
 
-// Links a Fusion session to a signed-in user; absence of a row means the session is a guest.
+// Links a session to a signed-in user; absence of a row means the session is a guest.
 public class DbSessionUser // Key = secret session id
 {
     [Key]
@@ -62,7 +62,7 @@ public class DbSessionUser // Key = secret session id
     public string UserId { get; set; } = "";
 }
 
-// The single-column Key enables batched lookups via IDbEntityResolver<string, DbQuestion>
+// The single-column Key enables batched lookups
 public class DbQuestion // Key = "{RoomId}/{Index}"; ResolvedAt != null means Resolved
 {
     [Key]

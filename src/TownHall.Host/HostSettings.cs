@@ -13,7 +13,4 @@ public class HostSettings
     // localhost is a WebAuthn secure context over http, so the defaults work for local dev as-is.
     public string PasskeyRpId { get; set; } = "localhost";
     public string[] PasskeyOrigins { get; set; } = ["http://localhost:5136", "https://localhost:5136"];
-
-    // Development-only convenience sign-in (no passkey). Never enable outside Development.
-    public bool EnableDevSignIn { get; set; } = false;
 }

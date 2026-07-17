@@ -17,16 +17,16 @@
     <WasmStripILAfterAOT>true</WasmStripILAfterAOT>
   </PropertyGroup>
 
-  <!-- Extra trimming roots. TownHall.Abstractions + TownHall.Api + MessagePack must be preserved
-       whole: the models/commands use reflection-based [MessagePackObject(true)] serialization, and
-       full trimming otherwise strips their members, crashing the WASM client on boot. -->
+  <!-- Extra trimming roots. The contract assemblies + ActualLab.Core must be preserved whole: the
+       models/commands are (de)serialized reflectively by SignalR's MessagePack protocol (contractless
+       resolver), and Moment relies on its [MessagePackFormatter]; full trimming would otherwise strip
+       members and crash the WASM client on boot. -->
   <ItemGroup>
     <TrimmerRootAssembly Include="TownHall.UI" />
     <TrimmerRootAssembly Include="TownHall.Abstractions" />
     <TrimmerRootAssembly Include="TownHall.Api" />
     <TrimmerRootAssembly Include="MudBlazor" />
-    <TrimmerRootAssembly Include="MessagePack" />
-    <TrimmerRootAssembly Include="MessagePack.Annotations" />
+    <TrimmerRootAssembly Include="ActualLab.Core" />
   </ItemGroup>
 
   <ItemGroup>
@@ -34,9 +34,10 @@
     <ProjectReference Include="..\TownHall.Api\TownHall.Api.csproj" />
   </ItemGroup>
 
-  <!-- Fusion packages -->
+  <!-- SignalR packages -->
   <ItemGroup>
-    <PackageReference Include="ActualLab.Fusion.Blazor" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Protocols.MessagePack" />
   </ItemGroup>
 
   <!-- Other packages -->
@@ -44,11 +45,6 @@
     <PackageReference Include="MudBlazor" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" PrivateAssets="all" />
-  </ItemGroup>
-
-  <!-- Source generators -->
-  <ItemGroup>
-    <PackageReference Include="ActualLab.Generators" PrivateAssets="all" />
   </ItemGroup>
 
 </Project>

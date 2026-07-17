@@ -1,28 +1,17 @@
-using MessagePack;
-
 namespace TownHall;
 
-// Frontend user API: resolves a Session to a user and exposes public/own user data.
+// Frontend user API. Identity is implicit (the hub binds the connection's session).
 // A session with no linked user is a guest - GetOwn returns null for it.
-public interface IUsers : IComputeService
+public interface IUsers
 {
     // The signed-in user's own account, or null if the session is a guest.
-    [ComputeMethod]
-    Task<UserFull?> GetOwn(Session session, CancellationToken cancellationToken = default);
+    IAsyncEnumerable<UserFull?> GetOwn(CancellationToken cancellationToken = default);
 
-    // Any user's public projection by id; null if unknown. Shared across sessions
-    // (invalidated for everyone when that user renames).
-    [ComputeMethod]
-    Task<User?> Get(Session session, string userId, CancellationToken cancellationToken = default);
-
-    // Requires a signed-in user. Trimmed length 1..30. Renames the user everywhere (GetOwn + Get).
-    [CommandHandler]
+    // Requires a signed-in user. Trimmed length 1..30. Renames the user everywhere it's shown.
     Task SetName(Users_SetName command, CancellationToken cancellationToken = default);
 }
 
-[MessagePackObject(true)]
 // ReSharper disable once InconsistentNaming
 public sealed record Users_SetName(
-    Session Session,
     string Name
-) : ISessionCommand<Unit>, IDelegatingCommand;
+);

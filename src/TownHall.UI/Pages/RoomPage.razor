@@ -1,19 +1,17 @@
 @page "/room/{RoomId}"
-@inherits ComputedStateComponent<RoomPage.Model>
+@inherits StateComponent<RoomView?>
 @inject IRooms Rooms
-@inject IRoomStats RoomStats
-@inject IUsers Users
 @inject TownHall.UI.Services.LayoutState LayoutState
 
-@{
-    var m = State.ValueOrDefault;
-}
-@if (m == null) {
+@if (!HasValue) {
     <PageTitle>Town Hall</PageTitle>
     <MudProgressCircular Indeterminate="true" Size="Size.Small" />
     return;
 }
-@if (m.Room is not { } room) {
+@{
+    var m = State;
+}
+@if (m?.Room is not { } room) {
     <PageTitle>Town Hall</PageTitle>
     <MudAlert Severity="Severity.Warning" Class="mb-4">This town hall doesn't exist.</MudAlert>
     <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/">Go home</MudButton>
@@ -100,21 +98,21 @@ else if (room.Status == RoomStatus.Ended) {
                     <div class="pt-3 px-3 pb-1">
                         <QuestionList RoomId="@RoomId" Tab="QuestionTab.Top" IsOwner="@m.IsOwner"
                                       IsLive="@(room.Status == RoomStatus.Live)"
-                                      IsEnded="@(room.Status == RoomStatus.Ended)" />
+                                      IsEnded="@(room.Status == RoomStatus.Ended)" IsSignedIn="@m.IsSignedIn" />
                     </div>
                 </MudTabPanel>
                 <MudTabPanel Text="@($"Recent ({m.Stats.OpenQuestionCount})")">
                     <div class="pt-3 px-3 pb-1">
                         <QuestionList RoomId="@RoomId" Tab="QuestionTab.Recent" IsOwner="@m.IsOwner"
                                       IsLive="@(room.Status == RoomStatus.Live)"
-                                      IsEnded="@(room.Status == RoomStatus.Ended)" />
+                                      IsEnded="@(room.Status == RoomStatus.Ended)" IsSignedIn="@m.IsSignedIn" />
                     </div>
                 </MudTabPanel>
                 <MudTabPanel Text="@($"Resolved ({m.Stats.ResolvedQuestionCount})")">
                     <div class="pt-3 px-3 pb-1">
                         <QuestionList RoomId="@RoomId" Tab="QuestionTab.Resolved" IsOwner="@m.IsOwner"
                                       IsLive="@(room.Status == RoomStatus.Live)"
-                                      IsEnded="@(room.Status == RoomStatus.Ended)" />
+                                      IsEnded="@(room.Status == RoomStatus.Ended)" IsSignedIn="@m.IsSignedIn" />
                     </div>
                 </MudTabPanel>
                 <MudTabPanel Text="Trending 🔥">
@@ -135,22 +133,10 @@ else if (room.Status == RoomStatus.Ended) {
 
     [Parameter] public string RoomId { get; set; } = "";
 
-    protected override void OnInitialized()
-        // The mobile Questions/Mood toggle is local state changed via events
-        => MustRenderAfterEvent = true;
+    protected override object? StateKey => RoomId;
 
-    protected override async Task<Model> ComputeState(CancellationToken cancellationToken)
-    {
-        var room = await Rooms.Get(Session, RoomId, cancellationToken);
-        if (room == null)
-            return new Model(null, false, new RoomStats(0, 0, 0, 0), false, "");
-
-        var isOwner = await Rooms.IsOwner(Session, RoomId, cancellationToken);
-        var stats = await RoomStats.GetStats(Session, RoomId, cancellationToken);
-        var userId = (await Users.GetOwn(Session, cancellationToken))?.Id;
-        var anonName = userId != null ? NameGenerator.New(AnonId.Of(userId, RoomId)) : "";
-        return new Model(room, isOwner, stats, userId != null, anonName);
-    }
+    protected override IAsyncEnumerable<RoomView?> Stream(CancellationToken cancellationToken)
+        => Rooms.Get(RoomId, cancellationToken);
 
     private static string BuildPageTitle(Room room, RoomStats stats)
     {
@@ -162,14 +148,12 @@ else if (room.Status == RoomStatus.Ended) {
     }
 
     private Task AdjustDuration(int minutes)
-        => UICommander.Run(new Rooms_AdjustDuration(Session, RoomId, TimeSpan.FromMinutes(minutes)));
+        => UICommander.Run(() => Rooms.AdjustDuration(new Rooms_AdjustDuration(RoomId, TimeSpan.FromMinutes(minutes))));
 
     private Task ToggleLive()
-        => UICommander.Run(new Rooms_SetLive(Session, RoomId, State.Value.Room!.Status != RoomStatus.Live));
+        => UICommander.Run(() => Rooms.SetLive(new Rooms_SetLive(RoomId, State!.Room!.Status != RoomStatus.Live)));
 
     // Nested types
 
     private enum MobileTab { Questions, Mood }
-
-    public sealed record Model(Room? Room, bool IsOwner, RoomStats Stats, bool IsSignedIn, string AnonName);
 }

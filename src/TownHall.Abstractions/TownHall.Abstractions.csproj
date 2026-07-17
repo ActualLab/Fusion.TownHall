@@ -4,9 +4,9 @@
     <RootNamespace>TownHall</RootNamespace>
   </PropertyGroup>
 
-  <!-- Fusion packages -->
+  <!-- ActualLab packages -->
   <ItemGroup>
-    <PackageReference Include="ActualLab.Fusion" />
+    <PackageReference Include="ActualLab.Core" />
   </ItemGroup>
 
 </Project>

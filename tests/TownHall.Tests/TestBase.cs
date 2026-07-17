@@ -1,61 +1,82 @@
+using TownHall.Host.Services;
+
 namespace TownHall.Tests;
 
 /// <summary>
-/// Base for test classes that run the same test methods against one of two access points:
-/// the server DI container or a Fusion RPC client container.
+/// Base for the service tests: helpers to spin up sessions and read the current value of a reactive
+/// stream (each stream yields the latest committed state immediately on subscribe).
 /// </summary>
 public abstract class TestBase(TestAppHost host) : IClassFixture<TestAppHost>
 {
     protected static readonly TimeSpan WaitTimeout = TimeSpan.FromSeconds(10);
 
     protected TestAppHost Host { get; } = host;
-    protected abstract IServiceProvider TestServices { get; }
-    protected IUsers Users => TestServices.GetRequiredService<IUsers>();
-    protected IRooms Rooms => TestServices.GetRequiredService<IRooms>();
-    protected IQuestions Questions => TestServices.GetRequiredService<IQuestions>();
-    protected IRoomStats RoomStats => TestServices.GetRequiredService<IRoomStats>();
-    protected IPresence Presence => TestServices.GetRequiredService<IPresence>();
-    protected IMood Mood => TestServices.GetRequiredService<IMood>();
-    protected ICommander Commander => TestServices.Commander();
 
-    // Server-side command service proxies allow commands only via ICommander,
-    // so tests use Call() at both access levels.
-    protected Task<TResult> Call<TResult>(ICommand<TResult> command)
-        => Commander.Call(command);
+    protected static string NewSession()
+        => Guid.NewGuid().ToString("N");
+
+    protected SessionServices For(string sessionId)
+        => Host.For(sessionId);
 
     // Signs a session in (guests can't act). Uses the server-side backend directly - there's no
-    // headless passkey ceremony - so it works for both the server- and client-container test variants.
-    protected async Task<string> SignIn(Session session, string name = "")
+    // headless passkey ceremony.
+    protected async Task<string> SignIn(string sessionId, string name = "")
     {
-        var serverCommander = Host.Services.Commander();
-        var userId = await serverCommander.Call(new UsersBackend_Create(name));
-        await serverCommander.Call(new UsersBackend_LinkSession(session.Id, userId));
+        var userId = await Host.Shared.Users.Create(new UsersBackend_Create(name));
+        await Host.Shared.Users.LinkSession(new UsersBackend_LinkSession(sessionId, userId));
         return userId;
     }
 
     // A fresh, signed-in session (the common case: a real participant).
-    protected async Task<Session> NewUser(string name = "")
+    protected async Task<string> NewUser(string name = "")
     {
-        var session = Session.New();
-        await SignIn(session, name);
-        return session;
+        var sessionId = NewSession();
+        await SignIn(sessionId, name);
+        return sessionId;
     }
 
-    protected async Task<Room> CreateRoom(Session session, bool live = true)
+    protected async Task<Room> CreateRoom(string sessionId, bool live = true)
     {
-        var room = await Call(new Rooms_Create(session, "Test Room", TimeSpan.FromHours(1)));
+        var svc = For(sessionId);
+        var room = await svc.Rooms.Create(new Rooms_Create("Test Room", TimeSpan.FromHours(1)));
         if (live)
-            await Call(new Rooms_SetLive(session, room.Id, true));
+            await svc.Rooms.SetLive(new Rooms_SetLive(room.Id, true));
         return room;
     }
 
-    protected static async Task<T> ReadWhen<T>(Func<Task<T>> read, Func<T, bool> predicate)
+    protected static async Task<T> First<T>(IAsyncEnumerable<T> stream)
     {
-        // Waits till the computed value of read() satisfies the predicate; this absorbs the
-        // client-side invalidation propagation delay when a cached value is re-read after a command
         using var cts = new CancellationTokenSource(WaitTimeout);
-        var computed = await Computed.Capture(read, cts.Token);
-        computed = await computed.When(predicate, cts.Token);
-        return computed.Value;
+        await foreach (var value in stream.WithCancellation(cts.Token))
+            return value;
+        throw new InvalidOperationException("Stream produced no value.");
     }
+
+    // Current-value read helpers
+    protected async Task<RoomView?> GetView(string s, string roomId)
+        => await First(For(s).Rooms.Get(roomId));
+    protected async Task<Room?> GetRoom(string s, string roomId)
+        => (await GetView(s, roomId))?.Room;
+    protected async Task<ImmutableArray<string>> GetRoomIds(string s, int limit = 1000)
+        => await First(For(s).Rooms.ListRooms(limit));
+    protected async Task<RoomCard?> GetRoomCard(string s, string roomId)
+        => await First(For(s).Rooms.GetCard(roomId));
+    protected async Task<ImmutableArray<QuestionView>> GetOpen(string s, string roomId)
+        => await First(For(s).Questions.ListOpen(roomId));
+    protected async Task<ImmutableArray<QuestionView>> GetResolved(string s, string roomId)
+        => await First(For(s).Questions.ListResolved(roomId));
+    protected async Task<QuestionView?> GetQuestion(string s, string roomId, long index)
+    {
+        var view = (await GetOpen(s, roomId)).FirstOrDefault(v => v.Question.Index == index)
+            ?? (await GetResolved(s, roomId)).FirstOrDefault(v => v.Question.Index == index);
+        return view;
+    }
+    protected async Task<MoodView> GetMood(string s, string roomId)
+        => await First(For(s).Mood.GetSummary(roomId));
+    protected async Task<ImmutableArray<TrendingQuestion>> GetTrending(string s, string roomId, int limit)
+        => await First(For(s).RoomStats.ListTrending(roomId, limit));
+    protected async Task<UserFull?> GetOwn(string s)
+        => await First(For(s).Users.GetOwn());
+    protected async Task<int> GetAudience(string s, string roomId)
+        => (await GetView(s, roomId))!.Stats.AudienceCount;
 }

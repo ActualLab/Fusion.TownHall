@@ -1,13 +1,5 @@
-using System.Data;
-using ActualLab.Fusion.EntityFramework;
-using ActualLab.Fusion.EntityFramework.Npgsql;
-using ActualLab.Fusion.EntityFramework.Operations;
-using ActualLab.Fusion.Server;
-using ActualLab.Rpc;
-using ActualLab.Rpc.Server;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Npgsql;
 using TownHall.Db;
 using TownHall.Host.Services;
@@ -15,104 +7,66 @@ using TownHall.Host.Services;
 namespace TownHall.Tests;
 
 /// <summary>
-/// Per-test-class app host: the server web host on a random port with a unique Postgres DB
-/// (requires the docker-compose Postgres), plus a Fusion RPC client container connected to it.
+/// Per-test-class app host: the shared server singletons with a unique Postgres DB
+/// (requires the docker-compose Postgres). Tests call the server-side services directly,
+/// bound to a chosen session.
 /// </summary>
 public sealed class TestAppHost : IAsyncLifetime
 {
-    private ServiceProvider? _clientServices;
+    private ServiceProvider _services = null!;
 
     public string ConnectionString { get; } = new NpgsqlConnectionStringBuilder(AppDbContext.DefaultConnectionString) {
         Database = $"townhall_tests_{Guid.NewGuid():N}",
     }.ConnectionString;
-    public WebApplication App { get; private set; } = null!;
-    public string BaseUrl { get; private set; } = "";
-    public IServiceProvider Services => App.Services;
-    public IServiceProvider ClientServices => _clientServices ??= BuildClientServices();
+    public ServerShared Shared { get; private set; } = null!;
 
     public async Task InitializeAsync()
     {
-        var builder = WebApplication.CreateBuilder();
-        builder.Logging.ClearProviders();
-        builder.WebHost.UseUrls("http://127.0.0.1:0");
-        ConfigureServices(builder.Services, ConnectionString);
-        App = builder.Build();
-        App.UseWebSockets();
-        App.MapRpcWebSocketServer();
+        var services = new ServiceCollection();
+        ConfigureServices(services, ConnectionString);
+        _services = services.BuildServiceProvider();
 
-        var dbContextFactory = Services.GetRequiredService<IDbContextFactory<AppDbContext>>();
+        var dbContextFactory = _services.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using (var dbContext = await dbContextFactory.CreateDbContextAsync())
             await dbContext.Database.MigrateAsync();
-        await App.StartAsync();
-        BaseUrl = App.Urls.First();
+        Shared = _services.GetRequiredService<ServerShared>();
     }
 
     public async Task DisposeAsync()
     {
-        if (_clientServices != null)
-            await _clientServices.DisposeAsync();
-
-        var dbContextFactory = Services.GetRequiredService<IDbContextFactory<AppDbContext>>();
+        var dbContextFactory = _services.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using (var dbContext = await dbContextFactory.CreateDbContextAsync())
             await dbContext.Database.EnsureDeletedAsync();
-        await App.StopAsync();
-        await App.DisposeAsync();
+        await _services.DisposeAsync();
     }
+
+    public SessionServices For(string sessionId)
+        => new(Shared, Identity.Of(sessionId));
 
     // Private methods
 
     private static void ConfigureServices(IServiceCollection services, string connectionString)
     {
-        // Mirrors the service configuration in TownHall.Host/Program.cs,
-        // including the statics ClientStartup.ConfigureSharedServices sets
-        RpcSerializationFormatResolver.Default = new("msgpack6c");
-        DbOperationScope.Options.DefaultIsolationLevel = IsolationLevel.RepeatableRead;
-        services.AddDbContextServices<AppDbContext>(db => {
-            db.AddOperations(operations => operations.AddNpgsqlOperationLogWatcher());
-            db.AddEntityResolver<string, DbRoom>();
-            db.AddEntityResolver<string, DbUser>();
-            db.AddEntityResolver<string, DbQuestion>();
-            // ReSharper disable once VariableHidesOuterVariable
-            db.Services.AddTransientDbContextFactory<AppDbContext>((c, db) => {
-                db.UseNpgsql(connectionString, npgsql => {
-                    npgsql.EnableRetryOnFailure(0);
-                });
-                db.UseNpgsqlHintFormatter();
-            });
-        });
-
-        var fusion = services.AddFusion(RpcServiceMode.Server, true);
-        fusion.AddWebServer();
-        fusion.AddOperationReprocessor();
-        // Backend (local); passkey/IAuth is omitted here - tests sign in via the backend directly.
-        fusion.AddComputeService<IUsersBackend, UsersBackend>();
-        fusion.AddComputeService<IRoomsBackend, RoomsBackend>();
-        fusion.AddComputeService<IQuestionsBackend, QuestionsBackend>();
-        fusion.AddComputeService<IRoomStatsBackend, RoomStatsBackend>();
-        fusion.AddComputeService<IPresenceBackend, PresenceBackend>();
-        fusion.AddComputeService<IMoodBackend, MoodBackend>();
-        // Frontend (RPC)
-        fusion.AddServer<IUsers, UsersService>();
-        fusion.AddServer<IRooms, RoomsService>();
-        fusion.AddServer<IQuestions, QuestionsService>();
-        fusion.AddServer<IRoomStats, RoomStatsService>();
-        fusion.AddServer<IPresence, PresenceService>();
-        fusion.AddServer<IMood, MoodService>();
-    }
-
-    private ServiceProvider BuildClientServices()
-    {
-        // Mirrors the client configuration in TownHall.UI/ClientStartup.cs
-        var services = new ServiceCollection();
+        // Mirrors the service configuration in TownHall.Host/Program.cs
         services.AddLogging();
-        var fusion = services.AddFusion();
-        fusion.Rpc.AddWebSocketClient(BaseUrl);
-        fusion.AddClient<IUsers>();
-        fusion.AddClient<IRooms>();
-        fusion.AddClient<IQuestions>();
-        fusion.AddClient<IRoomStats>();
-        fusion.AddClient<IPresence>();
-        fusion.AddClient<IMood>();
-        return services.BuildServiceProvider();
+        services.AddDbContextFactory<AppDbContext>(o => o
+            .UseNpgsql(connectionString)
+            .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning)));
+        services.AddSingleton<ChangeTracker>();
+        services.AddSingleton<PresenceStore>();
+        // Backend (local); tests sign in via the backend directly
+        services.AddSingleton<IUsersBackend, UsersBackend>();
+        services.AddSingleton<IRoomsBackend, RoomsBackend>();
+        services.AddSingleton<IQuestionsBackend, QuestionsBackend>();
+        services.AddSingleton<IRoomStatsBackend, RoomStatsBackend>();
+        services.AddSingleton<IPresenceBackend, PresenceBackend>();
+        services.AddSingleton<IMoodBackend, MoodBackend>();
+        services.AddSingleton<ServerShared>();
+        // Passkey infrastructure - unused by tests, but ServerShared requires it
+        services.AddSingleton<PasskeyChallengeStore>();
+        services.AddSingleton(new Fido2NetLib.Fido2Configuration {
+            ServerDomain = "localhost", ServerName = "TownHall",
+            Origins = new HashSet<string>(StringComparer.Ordinal) { "http://localhost:5136" },
+        });
     }
 }

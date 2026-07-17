@@ -1,9 +1,9 @@
 @using TownHall.UI.Services
-@inherits ComputedStateComponent<MoodPanel.Model>
+@inherits StateComponent<MoodView>
 @inject IMood Mood
 
 @{
-    var m = State.ValueOrDefault;
+    var m = State;
     var summary = m?.Summary ?? new MoodSummary([0, 0, 0, 0, 0], 0, null);
     var maxCount = Math.Max(1, summary.Counts.IsDefault ? 1 : summary.Counts.Max());
 }
@@ -71,17 +71,11 @@
     private static int MoodLevel(double average)
         => Math.Clamp((int)Math.Round(average), 1, 5);
 
-    protected override async Task<Model> ComputeState(CancellationToken cancellationToken)
-    {
-        var summary = await Mood.GetSummary(Session, RoomId, cancellationToken);
-        var ownLevel = await Mood.GetOwn(Session, RoomId, cancellationToken);
-        return new Model(summary, ownLevel);
-    }
+    protected override object? StateKey => RoomId;
+
+    protected override IAsyncEnumerable<MoodView> Stream(CancellationToken cancellationToken)
+        => Mood.GetSummary(RoomId, cancellationToken);
 
     private Task SetMood(int level)
-        => UICommander.Run(new Mood_Set(Session, RoomId, level));
-
-    // Nested types
-
-    public sealed record Model(MoodSummary Summary, int? OwnLevel);
+        => UICommander.Run(() => Mood.SetMood(new Mood_Set(RoomId, level)));
 }

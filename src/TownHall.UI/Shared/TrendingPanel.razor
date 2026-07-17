@@ -1,14 +1,13 @@
-@inherits ComputedStateComponent<ImmutableArray<TrendingPanel.Row>>
+@inherits StateComponent<ImmutableArray<TrendingQuestion>>
 @inject IRoomStats RoomStats
-@inject IQuestions Questions
 
-@if (State.ValueOrDefault is { IsDefault: false } rows) {
+@if (State is { IsDefault: false } rows) {
     @if (rows.Length == 0) {
         <MudText Typo="Typo.body2" Class="mud-text-secondary">Nothing's trending right now.</MudText>
     }
     @foreach (var row in rows) {
-        <div style="cursor: pointer;" class="mb-2" @key="@row.Index"
-             @onclick="@(() => JS.InvokeVoidAsync("townHall.scrollTo", $"q-{row.Index}"))">
+        <div style="cursor: pointer;" class="mb-2" @key="@row.QuestionIndex"
+             @onclick="@(() => JS.InvokeVoidAsync("townHall.scrollTo", $"q-{row.QuestionIndex}"))">
             <MudText Typo="Typo.body2" Style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                 @row.Text
             </MudText>
@@ -23,19 +22,8 @@ else {
 @code {
     [Parameter, EditorRequired] public string RoomId { get; set; } = "";
 
-    protected override async Task<ImmutableArray<Row>> ComputeState(CancellationToken cancellationToken)
-    {
-        var trending = await RoomStats.ListTrending(Session, RoomId, 5, cancellationToken);
-        var rows = new List<Row>(trending.Length);
-        foreach (var t in trending) {
-            var question = await Questions.Get(Session, RoomId, t.QuestionIndex, cancellationToken);
-            if (question != null)
-                rows.Add(new Row(t.QuestionIndex, question.Text, t.RecentVoteCount));
-        }
-        return [..rows];
-    }
+    protected override object? StateKey => RoomId;
 
-    // Nested types
-
-    public sealed record Row(long Index, string Text, int RecentVoteCount);
+    protected override IAsyncEnumerable<ImmutableArray<TrendingQuestion>> Stream(CancellationToken cancellationToken)
+        => RoomStats.ListTrending(RoomId, 5, cancellationToken);
 }

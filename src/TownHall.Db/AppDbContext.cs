@@ -1,10 +1,8 @@
-using ActualLab.Fusion.EntityFramework;
-using ActualLab.Fusion.EntityFramework.Operations;
 using Microsoft.EntityFrameworkCore;
 
 namespace TownHall.Db;
 
-public class AppDbContext(DbContextOptions options) : DbContextBase(options)
+public class AppDbContext(DbContextOptions options) : DbContext(options)
 {
     // The local docker-compose Postgres; HostSettings.PostgreSql and the design-time
     // factory both default to it.
@@ -19,10 +17,6 @@ public class AppDbContext(DbContextOptions options) : DbContextBase(options)
     public DbSet<DbQuestion> Questions { get; protected set; } = null!;
     public DbSet<DbVote> Votes { get; protected set; } = null!;
     public DbSet<DbMood> Moods { get; protected set; } = null!;
-
-    // ActualLab.Fusion.EntityFramework.Operations tables
-    public DbSet<DbOperation> Operations { get; protected set; } = null!;
-    public DbSet<DbEvent> Events { get; protected set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

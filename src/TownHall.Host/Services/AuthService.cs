@@ -7,17 +7,15 @@ namespace TownHall.Host.Services;
 
 // Frontend passkey (WebAuthn) service. Builds the browser ceremony options (stashing the challenge
 // per-session), verifies the browser's response with Fido2, then creates/links a user via IUsersBackend.
-public class AuthService(IServiceProvider services) : IAuth
+public sealed class AuthService(ServerShared shared, Identity identity)
+    : ServerService(shared, identity), IAuth
 {
-    // IFido2 is scoped, but its inputs are singletons - build one long-lived instance for this singleton.
-    private IFido2 Fido2 => field ??= new Fido2(
-        services.GetRequiredService<Fido2Configuration>(),
-        services.GetRequiredService<IMetadataService>());
-    private PasskeyChallengeStore Challenges => field ??= services.GetRequiredService<PasskeyChallengeStore>();
-    private IUsersBackend Backend => field ??= services.GetRequiredService<IUsersBackend>();
-    private ICommander Commander => field ??= services.Commander();
+    // Fido2 is cheap and stateless given its config; build one for this per-connection instance.
+    private IFido2 Fido2 => field ??= new Fido2(Shared.Fido2Config, null!);
+    private IUsersBackend Users => Shared.Users;
+    private PasskeyChallengeStore Challenges => Shared.Challenges;
 
-    public Task<string> GetRegistrationOptions(Session session, string name, CancellationToken cancellationToken = default)
+    public Task<string> GetRegistrationOptions(string name, CancellationToken cancellationToken = default)
     {
         name = name.Trim();
         if (name.Length is < 1 or > 30)
@@ -36,26 +34,25 @@ public class AuthService(IServiceProvider services) : IAuth
             },
             AttestationPreference = AttestationConveyancePreference.None,
         });
-        Challenges.StashRegistration(session.Id, options);
+        Challenges.StashRegistration(SessionId, options);
         return Task.FromResult(options.ToJson());
     }
 
-    public Task<string> GetSignInOptions(Session session, CancellationToken cancellationToken = default)
+    public Task<string> GetSignInOptions(CancellationToken cancellationToken = default)
     {
         var options = Fido2.GetAssertionOptions(new GetAssertionOptionsParams {
             AllowedCredentials = [],   // discoverable: the authenticator picks the credential
             UserVerification = UserVerificationRequirement.Preferred,
         });
-        Challenges.StashSignIn(session.Id, options);
+        Challenges.StashSignIn(SessionId, options);
         return Task.FromResult(options.ToJson());
     }
 
-    public virtual async Task<UserFull> RegisterPasskey(Auth_RegisterPasskey command, CancellationToken cancellationToken = default)
+    public async Task<UserFull> RegisterPasskey(Auth_RegisterPasskey command, CancellationToken cancellationToken = default)
     {
-        var (session, attestationJson) = command;
-        var response = JsonSerializer.Deserialize<AuthenticatorAttestationRawResponse>(attestationJson)
+        var response = JsonSerializer.Deserialize<AuthenticatorAttestationRawResponse>(command.AttestationJson)
             ?? throw new InvalidOperationException("Invalid passkey response.");
-        var options = Challenges.TakeRegistration(session.Id)
+        var options = Challenges.TakeRegistration(SessionId)
             ?? throw new InvalidOperationException("Passkey registration timed out. Please try again.");
 
         var credential = await Fido2.MakeNewCredentialAsync(new MakeNewCredentialParams {
@@ -66,25 +63,23 @@ public class AuthService(IServiceProvider services) : IAuth
 
         var credentialId = WebEncoders.Base64UrlEncode(credential.Id);
         var name = options.User.DisplayName;
-        var userId = await Commander.Call(new UsersBackend_Create(name), true, cancellationToken).ConfigureAwait(false);
-        await Commander
-            .Call(new UsersBackend_AddCredential(
-                credentialId, userId, credential.PublicKey, credential.SignCount, options.User.Id), true, cancellationToken)
-            .ConfigureAwait(false);
-        await Commander.Call(new UsersBackend_LinkSession(session.Id, userId), true, cancellationToken).ConfigureAwait(false);
-        return (await Backend.Get(userId, cancellationToken).ConfigureAwait(false))!;
+        var userId = await Users.Create(new UsersBackend_Create(name), cancellationToken).ConfigureAwait(false);
+        await Users.AddCredential(
+            new UsersBackend_AddCredential(credentialId, userId, credential.PublicKey, credential.SignCount, options.User.Id),
+            cancellationToken).ConfigureAwait(false);
+        await Users.LinkSession(new UsersBackend_LinkSession(SessionId, userId), cancellationToken).ConfigureAwait(false);
+        return (await Users.Get(userId, cancellationToken).ConfigureAwait(false))!;
     }
 
-    public virtual async Task<UserFull> SignIn(Auth_SignIn command, CancellationToken cancellationToken = default)
+    public async Task<UserFull> SignIn(Auth_SignIn command, CancellationToken cancellationToken = default)
     {
-        var (session, assertionJson) = command;
-        var response = JsonSerializer.Deserialize<AuthenticatorAssertionRawResponse>(assertionJson)
+        var response = JsonSerializer.Deserialize<AuthenticatorAssertionRawResponse>(command.AssertionJson)
             ?? throw new InvalidOperationException("Invalid passkey response.");
-        var options = Challenges.TakeSignIn(session.Id)
+        var options = Challenges.TakeSignIn(SessionId)
             ?? throw new InvalidOperationException("Passkey sign-in timed out. Please try again.");
 
         var credentialId = WebEncoders.Base64UrlEncode(response.RawId);
-        var stored = await Backend.GetCredential(credentialId, cancellationToken).ConfigureAwait(false)
+        var stored = await Users.GetCredential(credentialId, cancellationToken).ConfigureAwait(false)
             ?? throw new UnauthorizedAccessException("Unknown passkey. Create one first.");
 
         var result = await Fido2.MakeAssertionAsync(new MakeAssertionParams {
@@ -96,19 +91,13 @@ public class AuthService(IServiceProvider services) : IAuth
                 Task.FromResult(args.UserHandle == null || args.UserHandle.AsSpan().SequenceEqual(stored.UserHandle)),
         }, cancellationToken).ConfigureAwait(false);
 
-        await Commander
-            .Call(new UsersBackend_UpdateSignCount(credentialId, result.SignCount), true, cancellationToken)
-            .ConfigureAwait(false);
-        await Commander
-            .Call(new UsersBackend_LinkSession(session.Id, stored.UserId), true, cancellationToken)
-            .ConfigureAwait(false);
-        return (await Backend.Get(stored.UserId, cancellationToken).ConfigureAwait(false))!;
+        await Users.UpdateSignCount(new UsersBackend_UpdateSignCount(credentialId, result.SignCount), cancellationToken).ConfigureAwait(false);
+        await Users.LinkSession(new UsersBackend_LinkSession(SessionId, stored.UserId), cancellationToken).ConfigureAwait(false);
+        return (await Users.Get(stored.UserId, cancellationToken).ConfigureAwait(false))!;
     }
 
-    public virtual async Task SignOut(Auth_SignOut command, CancellationToken cancellationToken = default)
-    {
-        await Commander.Call(new UsersBackend_UnlinkSession(command.Session.Id), true, cancellationToken).ConfigureAwait(false);
-    }
+    public Task SignOut(CancellationToken cancellationToken = default)
+        => Users.UnlinkSession(new UsersBackend_UnlinkSession(SessionId), cancellationToken);
 
     // Private methods
 

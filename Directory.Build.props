@@ -37,7 +37,6 @@
     <Using Include="System.Collections.Generic" />
     <Using Include="System.Diagnostics.CodeAnalysis" />
     <Using Include="System.Linq" />
-    <Using Include="System.Reactive" /> <!-- Mainly for Unit type -->
     <Using Include="System.Text" />
     <Using Include="System.Threading" />
     <Using Include="System.Threading.Tasks" />
@@ -45,12 +44,6 @@
     <Using Include="ActualLab" />
     <Using Include="ActualLab.Async" />
     <Using Include="ActualLab.Collections" />
-    <Using Include="ActualLab.CommandR" />
-    <Using Include="ActualLab.CommandR.Configuration" />
-    <Using Include="ActualLab.CommandR.Commands" />
-    <Using Include="ActualLab.Fusion" />
-    <Using Include="ActualLab.Fusion.Operations" />
-    <Using Include="ActualLab.Rpc" />
     <Using Include="ActualLab.DependencyInjection" />
     <Using Include="ActualLab.Reflection" />
     <Using Include="ActualLab.Serialization" />

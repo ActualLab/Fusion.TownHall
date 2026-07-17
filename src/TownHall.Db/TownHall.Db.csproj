@@ -4,10 +4,9 @@
     <ProjectReference Include="..\TownHall.Abstractions\TownHall.Abstractions.csproj" />
   </ItemGroup>
 
-  <!-- Fusion packages -->
+  <!-- EF Core packages -->
   <ItemGroup>
-    <PackageReference Include="ActualLab.Fusion.EntityFramework" />
-    <PackageReference Include="ActualLab.Fusion.EntityFramework.Npgsql" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
   </ItemGroup>
 
   <!-- Other packages -->

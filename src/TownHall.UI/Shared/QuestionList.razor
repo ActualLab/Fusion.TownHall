@@ -1,14 +1,15 @@
-@inherits ComputedStateComponent<ImmutableArray<long>>
+@inherits StateComponent<ImmutableArray<QuestionView>>
 @inject IQuestions Questions
 
-@if (State.ValueOrDefault is { IsDefault: false } indexes) {
-    @if (indexes.Length == 0) {
+@if (State is { IsDefault: false } views) {
+    @if (views.Length == 0) {
         <MudText Typo="Typo.body2" Class="mud-text-secondary pa-2">
             @(Tab == QuestionTab.Resolved ? "Nothing resolved yet." : "No questions yet — ask the first one!")
         </MudText>
     }
-    @foreach (var index in indexes) {
-        <QuestionCard @key="@index" RoomId="@RoomId" Index="@index" IsOwner="@IsOwner" IsLive="@IsLive" IsEnded="@IsEnded" />
+    @foreach (var view in Sorted) {
+        <QuestionCard @key="@view.Question.Index" RoomId="@RoomId" View="@view"
+                      IsOwner="@IsOwner" IsLive="@IsLive" IsEnded="@IsEnded" IsSignedIn="@IsSignedIn" />
     }
 }
 else {
@@ -21,13 +22,19 @@ else {
     [Parameter] public bool IsOwner { get; set; }
     [Parameter] public bool IsLive { get; set; }
     [Parameter] public bool IsEnded { get; set; }
+    [Parameter] public bool IsSignedIn { get; set; }
 
-    protected override async Task<ImmutableArray<long>> ComputeState(CancellationToken cancellationToken)
-    {
-        return Tab switch {
-            QuestionTab.Top => await Questions.ListTopOpen(Session, RoomId, 50, cancellationToken),
-            QuestionTab.Recent => await Questions.ListOpen(Session, RoomId, cancellationToken),
-            _ => await Questions.ListResolved(Session, RoomId, cancellationToken),
-        };
-    }
+    // Top and Recent share one open-questions stream; only the ordering differs
+    protected override object? StateKey => (RoomId, Tab == QuestionTab.Resolved);
+
+    protected override IAsyncEnumerable<ImmutableArray<QuestionView>> Stream(CancellationToken cancellationToken)
+        => Tab == QuestionTab.Resolved
+            ? Questions.ListResolved(RoomId, cancellationToken)
+            : Questions.ListOpen(RoomId, cancellationToken);
+
+    // "Top": most votes first, ties older-first. Recent/Resolved arrive pre-ordered from the server.
+    private ImmutableArray<QuestionView> Sorted
+        => Tab == QuestionTab.Top
+            ? [..State.OrderByDescending(v => v.VoteCount).ThenBy(v => v.Question.Index)]
+            : State;
 }

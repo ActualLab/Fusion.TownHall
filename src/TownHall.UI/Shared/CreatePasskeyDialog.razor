@@ -1,0 +1,31 @@
+@* Prompts for a display name before the passkey (WebAuthn) registration ceremony. *@
+
+<MudDialog>
+    <DialogContent>
+        <MudTextField @bind-Value="_name" Immediate="true" Autofocus="true" Label="Your name"
+                      Placeholder="Your name" Variant="Variant.Outlined" MaxLength="30"
+                      HelperText="Shown next to your questions; you can change it later."
+                      OnKeyDown="@(e => { if (e.Key == "Enter") Submit(); })" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => MudDialog.Cancel())">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                   Disabled="@(_name.Trim().Length == 0)" OnClick="Submit">
+            Create passkey
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    private string _name = "";
+
+    private void Submit()
+    {
+        var name = _name.Trim();
+        if (name.Length == 0)
+            return;
+        MudDialog.Close(DialogResult.Ok(name));
+    }
+}

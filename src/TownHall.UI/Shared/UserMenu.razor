@@ -2,6 +2,7 @@
 @inject IUsers Users
 @inject IAuth Auth
 @inject TownHall.UI.Services.PasskeyClient Passkey
+@inject IDialogService DialogService
 @inject ISnackbar Snackbar
 
 @{
@@ -27,31 +28,18 @@
         </MudMenu>
     }
 }
-else if (_isNaming) {
-    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="0">
-        <MudTextField @bind-Value="_newName" Immediate="true" Margin="Margin.Dense" Placeholder="Your name"
-                      Variant="Variant.Outlined" MaxLength="30" Style="width: 12rem" Disabled="@_busy"
-                      OnKeyDown="@(e => { if (e.Key == "Enter") CreatePasskey(); })" />
-        <MudIconButton Icon="@Icons.Material.Filled.Check" Color="Color.Inherit" Size="Size.Small"
-                       Disabled="@(_busy || _newName.Trim().Length == 0)" OnClick="CreatePasskey" />
-        <MudIconButton Icon="@Icons.Material.Filled.Close" Color="Color.Inherit" Size="Size.Small"
-                       Disabled="@_busy" OnClick="@(() => _isNaming = false)" />
-    </MudStack>
-}
 else {
     <MudMenu Label="Sign in" StartIcon="@Icons.Material.Filled.Login"
              Color="Color.Inherit" Dense="true" Disabled="@_busy" Class="user-menu">
         <MudMenuItem Icon="@Icons.Material.Filled.Fingerprint" OnClick="SignIn">Sign in with passkey</MudMenuItem>
-        <MudMenuItem Icon="@Icons.Material.Filled.PersonAdd" OnClick="StartNaming">Create a passkey</MudMenuItem>
+        <MudMenuItem Icon="@Icons.Material.Filled.PersonAdd" OnClick="CreatePasskey">Create a passkey</MudMenuItem>
     </MudMenu>
 }
 
 @code {
     private bool _isEditing;
-    private bool _isNaming;
     private bool _busy;
     private string _editedName = "";
-    private string _newName = "";
 
     protected override void OnInitialized()
         // The edit-mode toggle and busy flag are local state changed via events
@@ -75,26 +63,21 @@ else {
         _ = UICommander.Run(new Users_SetName(Session, _editedName));
     }
 
-    private void StartNaming()
-    {
-        _newName = "";
-        _isNaming = true;
-    }
-
     private async Task CreatePasskey()
     {
-        if (_newName.Trim().Length == 0)
+        var dialog = await DialogService.ShowAsync<CreatePasskeyDialog>("Create a passkey");
+        var dialogResult = await dialog.Result;
+        if (dialogResult is null || dialogResult.Canceled)
             return;
+        var name = (string)dialogResult.Data!;
 
         _busy = true;
         try {
-            var options = await Auth.GetRegistrationOptions(Session, _newName.Trim());
+            var options = await Auth.GetRegistrationOptions(Session, name);
             var attestation = await Passkey.Register(options);
             var result = await UICommander.Run(new Auth_RegisterPasskey(Session, attestation));
-            if (!result.HasError) {
-                _isNaming = false;
+            if (!result.HasError)
                 Snackbar.Add($"Passkey created — signed in as {result.Value.Name}.", Severity.Success);
-            }
         }
         catch (Exception) {
             Snackbar.Add("Passkey creation was cancelled or unavailable.", Severity.Warning);

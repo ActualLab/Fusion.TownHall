@@ -32,6 +32,11 @@ services:
       ASPNETCORE_URLS: "http://+:8080"
       ASPNETCORE_ENVIRONMENT: "Production"
       HostSettings__PostgreSql: "Server=townhall-db;Database=townhall;Port=5432;User Id=postgres;Password=postgres"
+      # WebAuthn: the RP id must be the site's registrable domain and the origin
+      # must match the browser's. Defaults are localhost (dev only), so passkeys
+      # only work in prod once these point at the real host.
+      HostSettings__PasskeyRpId: "townhall.actuallab.net"
+      HostSettings__PasskeyOrigins__0: "https://townhall.actuallab.net"
     depends_on:
       townhall-db:
         condition: service_healthy

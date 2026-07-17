@@ -24,11 +24,10 @@ else {
 
     protected override async Task<ImmutableArray<long>> ComputeState(CancellationToken cancellationToken)
     {
-        var session = await CircuitHub.SessionResolver.GetSession(cancellationToken);
         return Tab switch {
-            QuestionTab.Top => await Questions.ListTopOpen(session, RoomId, 50, cancellationToken),
-            QuestionTab.Recent => await Questions.ListOpen(session, RoomId, cancellationToken),
-            _ => await Questions.ListResolved(session, RoomId, cancellationToken),
+            QuestionTab.Top => await Questions.ListTopOpen(Session, RoomId, 50, cancellationToken),
+            QuestionTab.Recent => await Questions.ListOpen(Session, RoomId, cancellationToken),
+            _ => await Questions.ListResolved(Session, RoomId, cancellationToken),
         };
     }
 }

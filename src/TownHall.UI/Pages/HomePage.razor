@@ -112,9 +112,8 @@ else {
 
     protected override async Task<Model> ComputeState(CancellationToken cancellationToken)
     {
-        var session = await CircuitHub.SessionResolver.GetSession(cancellationToken);
-        var roomIds = await Rooms.ListRooms(session, _limit, cancellationToken);
-        var isSignedIn = await Users.GetOwn(session, cancellationToken) != null;
+        var roomIds = await Rooms.ListRooms(Session, _limit, cancellationToken);
+        var isSignedIn = await Users.GetOwn(Session, cancellationToken) != null;
         return new Model(roomIds, isSignedIn);
     }
 

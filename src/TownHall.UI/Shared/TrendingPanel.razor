@@ -25,11 +25,10 @@ else {
 
     protected override async Task<ImmutableArray<Row>> ComputeState(CancellationToken cancellationToken)
     {
-        var session = await CircuitHub.SessionResolver.GetSession(cancellationToken);
-        var trending = await RoomStats.ListTrending(session, RoomId, 5, cancellationToken);
+        var trending = await RoomStats.ListTrending(Session, RoomId, 5, cancellationToken);
         var rows = new List<Row>(trending.Length);
         foreach (var t in trending) {
-            var question = await Questions.Get(session, RoomId, t.QuestionIndex, cancellationToken);
+            var question = await Questions.Get(Session, RoomId, t.QuestionIndex, cancellationToken);
             if (question != null)
                 rows.Add(new Row(t.QuestionIndex, question.Text, t.RecentVoteCount));
         }

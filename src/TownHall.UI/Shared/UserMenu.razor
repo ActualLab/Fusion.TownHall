@@ -47,8 +47,7 @@ else {
 
     protected override async Task<UserFull?> ComputeState(CancellationToken cancellationToken)
     {
-        var session = await CircuitHub.SessionResolver.GetSession(cancellationToken);
-        return await Users.GetOwn(session, cancellationToken);
+        return await Users.GetOwn(Session, cancellationToken);
     }
 
     private void StartEdit()

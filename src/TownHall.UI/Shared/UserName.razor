@@ -8,7 +8,6 @@
 
     protected override async Task<User> ComputeState(CancellationToken cancellationToken)
     {
-        var session = await CircuitHub.SessionResolver.GetSession(cancellationToken);
-        return await Users.Get(session, UserId, cancellationToken) ?? User.Guest;
+        return await Users.Get(Session, UserId, cancellationToken) ?? User.Guest;
     }
 }

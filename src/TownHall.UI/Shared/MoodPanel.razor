@@ -73,9 +73,8 @@
 
     protected override async Task<Model> ComputeState(CancellationToken cancellationToken)
     {
-        var session = await CircuitHub.SessionResolver.GetSession(cancellationToken);
-        var summary = await Mood.GetSummary(session, RoomId, cancellationToken);
-        var ownLevel = await Mood.GetOwn(session, RoomId, cancellationToken);
+        var summary = await Mood.GetSummary(Session, RoomId, cancellationToken);
+        var ownLevel = await Mood.GetOwn(Session, RoomId, cancellationToken);
         return new Model(summary, ownLevel);
     }
 

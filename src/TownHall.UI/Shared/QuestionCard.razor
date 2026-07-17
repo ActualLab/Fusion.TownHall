@@ -83,15 +83,14 @@
 
     protected override async Task<Model> ComputeState(CancellationToken cancellationToken)
     {
-        var session = await CircuitHub.SessionResolver.GetSession(cancellationToken);
-        var question = await Questions.Get(session, RoomId, Index, cancellationToken);
+        var question = await Questions.Get(Session, RoomId, Index, cancellationToken);
         if (question == null)
             return new Model(null, 0, false, null, false);
 
-        var voteCount = await Questions.GetVoteCount(session, RoomId, Index, cancellationToken);
-        var hasOwnVote = await Questions.HasOwnVote(session, RoomId, Index, cancellationToken);
-        var resolution = await Questions.GetResolution(session, RoomId, Index, cancellationToken);
-        var isSignedIn = await Users.GetOwn(session, cancellationToken) != null;
+        var voteCount = await Questions.GetVoteCount(Session, RoomId, Index, cancellationToken);
+        var hasOwnVote = await Questions.HasOwnVote(Session, RoomId, Index, cancellationToken);
+        var resolution = await Questions.GetResolution(Session, RoomId, Index, cancellationToken);
+        var isSignedIn = await Users.GetOwn(Session, cancellationToken) != null;
         return new Model(question, voteCount, hasOwnVote, resolution, isSignedIn);
     }
 

@@ -71,8 +71,7 @@
 
     protected override async Task<string?> ComputeState(CancellationToken cancellationToken)
     {
-        var session = await CircuitHub.SessionResolver.GetSession(cancellationToken);
-        return await Rooms.GetOwnerToken(session, Room.Id, cancellationToken);
+        return await Rooms.GetOwnerToken(Session, Room.Id, cancellationToken);
     }
 
     private Task SetIsPrivate(bool isPrivate)

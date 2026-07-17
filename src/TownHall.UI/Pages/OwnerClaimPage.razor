@@ -25,14 +25,13 @@ else {
         if (!firstRender)
             return;
 
-        var session = await CircuitHub.SessionResolver.GetSession();
-        if (await Services.GetRequiredService<IUsers>().GetOwn(session) == null) {
+        if (await Services.GetRequiredService<IUsers>().GetOwn(Session) == null) {
             _error = "Please sign in (top-right), then open this owner link again.";
             StateHasChanged();
             return;
         }
         try {
-            await Services.Commander().Call(new Rooms_ClaimOwnership(session, RoomId, Token));
+            await Services.Commander().Call(new Rooms_ClaimOwnership(Session, RoomId, Token));
         }
         catch (Exception e) {
             _error = e.Message;

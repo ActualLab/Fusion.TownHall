@@ -1,0 +1,5 @@
+# Session 20
+
+**User:** Why do you use complex paths to resolve `Session` in components (`await CircuitHub.SessionResolver.GetSession(...)`)? `CircuitHubComponentBase` already exposes `Session`, `UICommander`, `Nav`, etc. as shortcuts. And for the note: you can also create a base class for the Fusion sample to add a few shortcuts, if needed.
+
+**Fable5:** No good reason — leftover defensive style. The event handlers already used the inherited `Session` shortcut; only the `ComputeState` methods took the async `SessionResolver.GetSession` path, which is only needed when a session can arrive late, and TownHall's `App.razor` pins `SessionResolver.Session` in both render modes before any child computes state (Fusion's own TodoApp sample also uses `Session` directly in `ComputeState`). Replaced the async hop with the inherited `Session` property across 12 components (−12 net lines); no custom base class needed — `CircuitHubComponentBase` already provides the shortcuts. 68/68 tests pass; re-ran the rebase and pushed both branches.

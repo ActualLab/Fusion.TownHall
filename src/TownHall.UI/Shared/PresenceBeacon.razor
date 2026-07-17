@@ -24,12 +24,11 @@
     private async Task Beat(CancellationToken cancellationToken)
     {
         // The heartbeat: one Presence_Watch on page open, then every 15 s while it stays open
-        var session = await CircuitHub.SessionResolver.GetSession(cancellationToken);
         var commander = Services.Commander();
         var roomId = RoomId;
         while (!cancellationToken.IsCancellationRequested) {
             try {
-                await commander.Call(new Presence_Watch(session, roomId), cancellationToken);
+                await commander.Call(new Presence_Watch(Session, roomId), cancellationToken);
             }
             catch (Exception) {
                 // Transient failure; the next beat retries anyway

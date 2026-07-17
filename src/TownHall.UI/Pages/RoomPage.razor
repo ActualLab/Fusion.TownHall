@@ -141,14 +141,13 @@ else if (room.Status == RoomStatus.Ended) {
 
     protected override async Task<Model> ComputeState(CancellationToken cancellationToken)
     {
-        var session = await CircuitHub.SessionResolver.GetSession(cancellationToken);
-        var room = await Rooms.Get(session, RoomId, cancellationToken);
+        var room = await Rooms.Get(Session, RoomId, cancellationToken);
         if (room == null)
             return new Model(null, false, new RoomStats(0, 0, 0, 0), false, "");
 
-        var isOwner = await Rooms.IsOwner(session, RoomId, cancellationToken);
-        var stats = await RoomStats.GetStats(session, RoomId, cancellationToken);
-        var userId = (await Users.GetOwn(session, cancellationToken))?.Id;
+        var isOwner = await Rooms.IsOwner(Session, RoomId, cancellationToken);
+        var stats = await RoomStats.GetStats(Session, RoomId, cancellationToken);
+        var userId = (await Users.GetOwn(Session, cancellationToken))?.Id;
         var anonName = userId != null ? NameGenerator.New(AnonId.Of(userId, RoomId)) : "";
         return new Model(room, isOwner, stats, userId != null, anonName);
     }

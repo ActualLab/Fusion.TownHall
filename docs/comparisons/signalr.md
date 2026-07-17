@@ -1,78 +1,83 @@
 # SignalR vs Fusion — comparison
 
-Built against: main `1b5d9a1` · signalr `d7d625a` · 2026-07-15
-Framework delta: **78 files, +2157 / −2072 lines** (`git diff --stat main signalr`)
+Built against: main `453eb45` · signalr `8416524` · 2026-07-16
+Framework delta: **91 files, +2300 / −2009 lines** (`git diff --stat main signalr`)
 
 `main` is the reference **.NET + Fusion** implementation; `signalr` is the same app
 on **.NET + SignalR streams, no Fusion** (only `ActualLab.Core` for `Moment`/hashing).
-Both pass their suites against the same Postgres schema. Lenses below: **measured**
-= observed live this build; **extrapolated** = derived from code (a live signalr
-`--aspire` run would upgrade its perf numbers to measured).
+Both pass their suites against the same Postgres schema, and since this build the
+two codebases are **name-aligned**: API method names, command records, member order,
+and comments are identical wherever the framework doesn't force a difference, so the
+diff below is a pure framework delta. Lenses: **Volume** and **Cleanliness**
+re-measured this build; **Robustness** updated (test counts, file names);
+**Performance** carried over from the 2026-07-15 measured run — the hot paths
+(reads, writes, presence) haven't changed since, only names/comments/auth UX.
 
 ---
 
 ## 1. Volume (numerical)
 
-**Verdict: a wash on total LOC (+85 net on signalr), but the code lives in very
-different places** — Fusion pushes ceremony into *contracts*, SignalR pushes it into
-*client/reactive infrastructure it has to hand-write*.
+**Verdict: signalr is +291 net lines — the app logic is a wash, and the whole gap
+is the reactive infrastructure SignalR has to hand-write.** Fusion pushes ceremony
+into *contracts*; SignalR pushes it into *client/server reactive glue it owns*.
 
 Net line delta by area (`signalr − main`; negative = signalr is smaller):
 
 | Area | +add | −del | net | verdict |
 |------|-----:|-----:|----:|---------|
-| Contracts (`TownHall.Contracts`) | 111 | 282 | **−171** | signalr smaller |
-| UI components (Pages/Shared/Layout) | 181 | 273 | **−92** | signalr smaller |
-| UI infra (`UI/Services`) | 449 | 76 | **+373** | Fusion smaller |
-| Host wiring (`Program.cs` etc.) | 215 | 134 | **+81** | Fusion smaller |
-| Host/Services | 636 | 611 | +25 | **~even** (noise vs ~2 100 total) |
-| Db | 3 | 16 | −13 | **~even** (both are plain EF + one migration) |
-| Tests | 405 | 522 | −117 | **~even case count — see note** |
+| Contracts (`TownHall.Api` + `TownHall.Backend`) | 112 | 330 | **−218** | signalr smaller |
+| UI components (Pages/Shared/Layout) | 166 | 268 | **−102** | signalr smaller |
+| Models (`TownHall.Abstractions`) | 53 | 20 | **+33** | signalr adds view-model records |
+| UI infra (`UI/Services`, startup) | 479 | 45 | **+434** | Fusion smaller |
+| Host wiring (`Program.cs`, hub, filters) | 261 | 144 | **+117** | Fusion smaller |
+| Host/Services | 850 | 703 | **+147** | Fusion smaller — but see note |
+| Db | 5 | 12 | −7 | **~even** (both plain EF, same schema) |
+| Tests | 362 | 459 | **−97** | leaner signalr harness — see note |
 
-Top files by churn: `RoomsService.cs` (357), `QuestionsService.cs` (295),
-`Program.cs` (162), `TownHallClient.cs` (+149, new), `IRooms.cs` (−112 net).
+Top files by churn (add+del): `RoomsBackend.cs` (224), `Host/Program.cs` (204),
+`QuestionsBackend.cs` (192), `TownHallClient.cs` (+150, new), `RoomsService.cs`
+(146), `QuestionsTests.cs` (143), `UsersBackend.cs` (143), `ChangeTracker.cs`
+(+140, new).
 
-**The even scopes are genuinely even.** Domain logic (`Host/Services`, +25) and the
-DB layer (−13) are within noise of each other — the framework choice barely touches
-the actual room/question/vote/mood logic or the EF model; both run the same schema
-and one migration. As expected, the *business code* is a wash.
-
-**Tests: case count is even, but Fusion's suite covers more.** Method counts are
-almost identical — **33** `[Fact]`/`[Theory]` on Fusion vs **34** on signalr — so the
-−117 lines is a *leaner harness*, not fewer cases. But Fusion **executes 62 vs
-signalr's 34**: every shared test runs against **both** the in-process server
-container *and* the RPC-client container (the `*ServerTests`/`*ClientTests` variant
-pairs), so Fusion's suite also exercises the **client/RPC transport** for free.
-signalr's `TestBase` has a single access point, so each test runs once. Each side
-also has framework-specific tests (Fusion: `InvalidationTests`,
-`PresenceConsolidationTests`; signalr: `PropagationTests` for stream re-yield). Net:
-**even authored effort, ~2× the executed coverage on Fusion** — count this as a
-Fusion coverage win, not a signalr size win.
+**The domain logic is genuinely even.** The Host/Services +147 is *not* the
+room/question/vote logic — it's the server-side reactive glue that lives there as
+new files: `ChangeTracker.cs` (140), `ServerService.cs` (85), `PresenceStore.cs`
+(46), `ServerShared.cs` (34), `BackendService.cs` (26), plus small session/telemetry
+helpers — **~360 lines of infrastructure**. Subtract those and the domain services
+come out slightly *smaller* than Fusion's (no `Invalidation.IsActive` branches, no
+operation-DbContext plumbing). The DB layer (−7) is within noise; both run the same
+schema and migrations.
 
 **Where SignalR is lighter**
-- **Contracts −171.** Fusion contracts carry a serializable `*_Command` record +
-  attributes per write (`IRooms.cs` alone is −112: `Rooms_Create`, `Rooms_SetLive`,
-  … each a `[MessagePackObject] … : ISessionCommand<Unit>` record). SignalR
-  interfaces are plain async methods with implicit identity — no command records,
-  no `[ComputeMethod]`/`[CommandHandler]` attributes.
-- **UI components −92.** `StateComponent<T>` observes exactly one stream; components
-  drop the per-read `Session`/`ComputeState` plumbing and the `CircuitHub.SessionResolver`
-  hops.
+- **Contracts −218.** Both branches keep one command record per write (a deliberate
+  shared invariant — see AGENTS.md), but Fusion's records each carry
+  `[MessagePackObject]`, a `Session` field, and an `ISessionCommand<T>`/
+  `IDelegatingCommand` base, and every interface method carries
+  `[ComputeMethod]`/`[CommandHandler]`. SignalR's records are the bare
+  `(RoomId, ...)` payload and its interfaces are attribute-free (identity is bound
+  by the hub, so no method threads a `Session`).
+- **UI components −102.** `StateComponent<T>` observes exactly one stream;
+  components drop the per-read `Session`/`ComputeState` plumbing and the
+  `CircuitHub.SessionResolver` hops. The +33 in Abstractions is the flip side:
+  signalr bundles what a component needs into view-model records
+  (`RoomView`, `RoomCard`, `LobbyView`, `QuestionView`, `MoodView`) where Fusion
+  components compose fine-grained reads.
 
 **Where Fusion is lighter (SignalR pays it back as infra)**
-- **UI infra +373 / Host services ~even but with 5 new files.** SignalR hand-writes
-  the reactive plumbing Fusion ships in the box:
-  `TownHallClient.cs` (149), `Clients.cs` (96), `ComponentBases.cs` (95) on the
-  client; `ChangeTracker.cs` (96), `ServerService.cs` (61) on the server — **~497
-  lines of framework-shaped glue** (one HubConnection with auto-reconnect + stream
-  re-subscribe, a versioned per-scope change signal, a `StateComponent` base). In
-  Fusion these are `AddFusion()` + `ComputedStateComponent`.
-- **Host wiring +81.** SignalR adds the hub, a session-cookie middleware, the render-
-  mode endpoint, and a Fusion-free render-mode switch.
+- **UI infra +434 and ~360 lines of the Host/Services delta.** SignalR hand-writes
+  what Fusion ships in the box: `TownHallClient.cs` (150, one HubConnection with
+  auto-reconnect + stream re-subscribe), `Clients.cs` (115, per-interface proxies),
+  `ComponentBases.cs` (95, the `StateComponent` base) on the client;
+  `ChangeTracker.cs` + `ServerService.cs` + `PresenceStore.cs` on the server —
+  **~800 lines of framework-shaped glue** total. In Fusion these are `AddFusion()`
+  + `ComputedStateComponent`.
+- **Host wiring +117.** SignalR adds the hub (`TownHallHub.cs`, one forwarding
+  method per API method), `ErrorHubFilter`, a session-cookie middleware, and the
+  render-mode endpoint.
 
-Net: same app, similar size — Fusion trades **contract boilerplate** for a **free
-reactive client**; SignalR trades **lean contracts/components** for **~500 lines of
-reactive infrastructure you own**.
+Net: same app, similar size — Fusion trades **contract/attribute boilerplate** for
+a **free reactive client**; SignalR trades **lean contracts/components** for
+**~800 lines of reactive infrastructure you own**.
 
 ---
 
@@ -80,23 +85,25 @@ reactive infrastructure you own**.
 
 **Verdict: SignalR reads cleaner in the leaves (contracts, components, commands);
 Fusion reads cleaner in the middle (no bespoke client/transport layer to hold in
-your head).**
+your head).** With names now unified (`Post`, `Create`, `SetLive`, `ListOpen`, ...
+on both branches), a file-by-file diff shows exactly the framework, nothing else.
 
 - **Commands.** Fusion command handlers carry a dual-mode shape — the
-  `if (Invalidation.IsActive) { _ = GetRoom(id); _ = ListRoomIds(); … return null!; }`
-  branch that re-lists what to invalidate, plus `CreateOperationDbContext` — before
-  the real body (`RoomsService.OnCreate`). SignalR's `CreateRoom` is one straight
-  path: validate → `SaveAndNotify(db, "room:{id}")`. The invalidation-vs-notify
-  ergonomics are the single biggest readability delta in the services.
+  `if (Invalidation.IsActive) { ... re-list what to invalidate ...; return null!; }`
+  branch plus `CreateOperationDbContext` — before the real body
+  (`RoomsService.Create`). SignalR's `Create` is one straight path: validate →
+  `SaveAndNotify(dbContext, "room:{id}")`. The invalidation-vs-notify ergonomics
+  are the single biggest readability delta in the services.
 - **Reads.** Fusion reads are ordinary cached async methods; the reactivity is
-  invisible. SignalR reads are `IAsyncEnumerable` streams with an explicit self-wake
-  (`(value, wake)` tuples for TTL/aging), which is more machinery in the method
-  signature but keeps *time-based* re-evaluation local and legible.
+  invisible. SignalR reads are `IAsyncEnumerable` streams with an explicit
+  self-wake (`(value, wake)` tuples for TTL/aging), which is more machinery in the
+  method signature but keeps *time-based* re-evaluation local and legible.
 - **Identity.** SignalR wins on ergonomics: identity is implicit (the hub binds the
-  connection's session), so no method threads a `Session`. Fusion threads `Session`
-  through every read/command.
-- **Client.** Fusion has *no* client layer to read — components just inject the same
-  interfaces. SignalR's `TownHallClient` (reconnect + transparent stream
+  connection's session), so no method threads a `Session` and command records carry
+  only their payload. Fusion threads `Session` through every read and every command
+  record.
+- **Client.** Fusion has *no* client layer to read — components inject the same
+  interfaces everywhere. SignalR's `TownHallClient` (reconnect + transparent stream
   re-subscription) is well-written but is a whole subsystem a reader must learn.
 
 ---
@@ -115,30 +122,34 @@ simpler but single-host and re-reads more eagerly.**
 - **Cross-viewer sharing — Fusion wins.** A Fusion computed is shared by key across
   all viewers: a change re-computes **once**, shared. SignalR streams are
   **per-subscription**: the same read for N viewers re-runs N times per notify.
-- **Committed-but-errored writes.** Both were hardened: Fusion via the operation
-  reprocessor; the signalr port added `SaveAndNotify` (notify in a `finally`) so a
+- **Committed-but-errored writes.** Both are hardened: Fusion via the operation
+  reprocessor; the signalr port's `SaveAndNotify` notifies in a `finally`, so a
   committed-but-throwing save still propagates.
-- **Presence idle churn (Fusion, fixed this build).** Fusion's per-`Ttl` presence
-  re-check used to cascade to stats/mood even when the set was unchanged; fixed with
-  `ConsolidationDelay` + a value-equal `PresentSessions` (see `PresenceService`,
+- **Presence idle churn (Fusion).** Fusion's per-`Ttl` presence re-check used to
+  cascade to stats/mood even when the set was unchanged; fixed with
+  `ConsolidationDelay` + a value-equal `PresentUsers` (see `PresenceBackend`,
   `PresenceConsolidationTests`). SignalR sidesteps this structurally — presence
   streams self-wake and re-read only their own scope.
 - **Reconnect.** Fusion's RPC handles reconnect/replay in-framework; SignalR
-  re-implements it in `TownHallClient` (auto-reconnect + re-subscribe), verified live
-  in the port but more surface to get right.
-- **Test coverage — Fusion wins.** Fusion runs each shared test against both the
-  direct-server and the RPC-client container (62 executed vs signalr's 34 for a
-  near-identical ~33 authored cases), so its suite catches client/RPC-transport
-  regressions the signalr suite can't (it has one access point).
+  re-implements it in `TownHallClient` (auto-reconnect + re-subscribe), verified
+  live in the port but more surface to get right.
+- **Test coverage — Fusion wins.** Authored effort is even (**36** Fusion vs **37**
+  signalr `[Fact]`/`[Theory]` methods), but Fusion **executes 68 vs signalr's 37**:
+  every shared test runs against both the in-process server container *and* the
+  RPC-client container, so Fusion's suite also exercises the client/RPC transport
+  for free. signalr's `TestBase` has a single hub-client access point, so each test
+  runs once (its `PropagationTests` cover stream re-yield specifically).
 
 ---
 
 ## 4. Performance
 
 **Verdict: SignalR has the cheaper *write* path; Fusion has the cheaper *read* path
-under concurrency (shared cache) and at idle.** *(Fusion = measured live on `main`
-with `--aspire` this build; SignalR = extrapolated from code — run signalr with
-`--aspire` to measure.)*
+under concurrency (shared cache) and at idle.** *(Carried over from the 2026-07-15
+run: Fusion measured live with `--aspire` on that build; SignalR extrapolated from
+code. The hot paths are unchanged since — only names, comments, and sign-in UX
+moved — so the numbers stand. A live signalr `--aspire` run would upgrade its
+numbers to measured.)*
 
 Method: drove `main` in the browser while watching the Aspire dashboard
 (`ActualLab.Rpc`/`Npgsql`/`TownHall.Db` meters + traces), the `Executed DbCommand`
@@ -147,23 +158,23 @@ log, and the `_Operations` table.
 **Reads**
 - **Fusion (measured):** a compute method hits Postgres **once**, then serves from
   cache until invalidated — and the cache is **shared across viewers**. An idle but
-  occupied room costs **~0 queries** after warm-up (verified: 0 stats/mood reads over
-  a 65 s idle window post-consolidation-fix); the only idle DB traffic is the
+  occupied room costs **~0 queries** after warm-up (verified: 0 stats/mood reads
+  over a 65 s idle window post-consolidation-fix); the only idle DB traffic is the
   operation/event-log reader poll (60 s dev / 5 s prod).
 - **SignalR (extrapolated):** each open stream **re-reads on every notify to its
-  scope**, with **no cross-viewer sharing**. So a room with V viewers each holding S
-  streams re-queries ≈ **V×S times per notify**, where Fusion re-computes ≈ **S times
-  total** (shared) and only for actually-changed values. Read cost therefore grows
-  with concurrency on SignalR and stays flat on Fusion.
+  scope**, with **no cross-viewer sharing**. So a room with V viewers each holding
+  S streams re-queries ≈ **V×S times per notify**, where Fusion re-computes ≈
+  **S times total** (shared) and only for actually-changed values. Read cost
+  therefore grows with concurrency on SignalR and stays flat on Fusion.
 
 **Writes**
 - **Fusion (measured):** a persisted command appends an **operation-log row**
   (extra INSERT into `_Operations`) on top of the domain write — the price of
-  cross-host invalidation. (Ephemeral commands like presence stay transient: verified
-  `_Operations` empty at idle.)
+  cross-host invalidation. (Ephemeral commands like presence stay transient:
+  verified `_Operations` empty at idle.)
 - **SignalR (extrapolated):** `SaveAndNotify` is just `SaveChanges` + an in-memory
-  version bump — **no operation-log INSERT**. Cheapest possible write, at the cost of
-  the single-host limitation above.
+  version bump — **no operation-log INSERT**. Cheapest possible write, at the cost
+  of the single-host limitation above.
 
 **Rough per-action shape**
 
@@ -176,6 +187,6 @@ log, and the `_Operations` table.
 **Bottom line.** Pick **Fusion** when reads dominate, viewers are concurrent, or you
 run more than one host — its shared, invalidation-driven cache makes reads nearly
 free and keeps every node consistent, at the cost of contract boilerplate and an
-operation-log write per command. Pick **SignalR** for the leanest contracts/components
-and the cheapest single-host writes, accepting ~500 lines of hand-written reactive
-infrastructure and read cost that scales with concurrency.
+operation-log write per command. Pick **SignalR** for the leanest
+contracts/components and the cheapest single-host writes, accepting ~800 lines of
+hand-written reactive infrastructure and read cost that scales with concurrency.

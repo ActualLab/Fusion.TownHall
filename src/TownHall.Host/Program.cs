@@ -15,6 +15,7 @@ using TownHall.Host.Components.Pages;
 using TownHall.Db;
 using TownHall.Host.Services;
 using TownHall.UI;
+using ActualLab.Compliance;
 
 // IComputeService validation should be off in release
 #if !DEBUG
@@ -72,6 +73,9 @@ void ConfigureLogging()
         logging.ClearProviders();
         logging.AddConsole();
         logging.SetMinimumLevel(LogLevel.Information);
+        // Masks Session, User and the auth commands in the log - and only there.
+        // Drop this line (or pass false) to see raw values while debugging.
+        logging.AddSanitizingLoggerFactory();
     });
 }
 

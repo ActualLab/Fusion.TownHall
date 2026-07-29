@@ -9,6 +9,21 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # TestAppHost connects to AppDbContext.DefaultConnectionString (127.0.0.1:5432),
+    # i.e. the local docker-compose Postgres when run by hand. Same major as the
+    # deployed one; bump both together.
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
 

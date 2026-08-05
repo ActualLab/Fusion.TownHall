@@ -35,7 +35,7 @@ public static class ClientStartup
     public static void ConfigureSharedServices(IServiceCollection services)
     {
         // The contracts carry MessagePack attributes only, so RPC must not default to MemoryPack
-        RpcSerializationFormatResolver.Default = new("msgpack6c");
+        RpcSerializationFormatResolver.Default = new("msgpack6c-lz4");
 
         var fusion = services.AddFusion();
         fusion.AddBlazor();

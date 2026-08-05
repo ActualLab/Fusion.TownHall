@@ -65,7 +65,7 @@ public sealed class TestAppHost : IAsyncLifetime
     {
         // Mirrors the service configuration in TownHall.Host/Program.cs,
         // including the statics ClientStartup.ConfigureSharedServices sets
-        RpcSerializationFormatResolver.Default = new("msgpack6c");
+        RpcSerializationFormatResolver.Default = new("msgpack6c-lz4");
         DbOperationScope.Options.DefaultIsolationLevel = IsolationLevel.RepeatableRead;
         services.AddDbContextServices<AppDbContext>(db => {
             db.AddOperations(operations => operations.AddNpgsqlOperationLogWatcher());

@@ -4,6 +4,7 @@ using TownHall.Db;
 
 namespace TownHall.Host.Services;
 
+[DeferredInvalidationMode(DeferredInvalidationMode.Replicated)]
 public class QuestionsBackend(IServiceProvider services) : DbServiceBase<AppDbContext>(services), IQuestionsBackend
 {
     private IDbEntityResolver<string, DbQuestion> QuestionResolver { get; }
@@ -109,13 +110,6 @@ public class QuestionsBackend(IServiceProvider services) : DbServiceBase<AppDbCo
     {
         var (roomId, authorUserId, text, anonymous) = command;
         var context = CommandContext.GetCurrent();
-        if (Invalidation.IsActive) {
-            var index = context.Operation.Items.Get<long>("Index");
-            _ = Get(roomId, index, default);
-            _ = ListOpen(roomId, default);
-            return null!;
-        }
-
         // Questions are single-paragraph: line feeds and whitespace runs collapse to single spaces
         text = string.Join(" ", text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
         if (text.Length is < 1 or > 500)
@@ -142,20 +136,18 @@ public class QuestionsBackend(IServiceProvider services) : DbServiceBase<AppDbCo
         };
         dbContext.Add(dbQuestion);
         await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        context.Operation.Items.Set("Index", dbQuestion.Index);
+        var questionIndexToInvalidate = dbQuestion.Index;
+        Invalidation.Defer(() => {
+            _ = Get(roomId, questionIndexToInvalidate, default);
+            _ = ListOpen(roomId, default);
+        });
+
         return new Question(roomId, dbQuestion.Index, authorId, text, now);
     }
 
     public virtual async Task Vote(QuestionsBackend_Vote command, CancellationToken cancellationToken = default)
     {
         var (roomId, index, userId, value) = command;
-        if (Invalidation.IsActive) {
-            _ = GetVoteCount(roomId, index, default);
-            _ = HasVote(roomId, index, userId, default);
-            _ = PseudoVotes(roomId, default);
-            return;
-        }
-
         var dbContext = await DbHub.CreateOperationDbContext(cancellationToken).ConfigureAwait(false);
         await using var _1 = dbContext.ConfigureAwait(false);
 
@@ -187,18 +179,17 @@ public class QuestionsBackend(IServiceProvider services) : DbServiceBase<AppDbCo
             dbContext.Remove(dbVote);
         }
         await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        Invalidation.Defer(() => {
+            _ = GetVoteCount(roomId, index, default);
+            _ = HasVote(roomId, index, userId, default);
+            _ = PseudoVotes(roomId, default);
+        });
     }
 
     public virtual async Task Resolve(QuestionsBackend_Resolve command, CancellationToken cancellationToken = default)
     {
         var (roomId, index, note) = command;
-        if (Invalidation.IsActive) {
-            _ = ListOpen(roomId, default);
-            _ = ListResolved(roomId, default);
-            _ = GetResolution(roomId, index, default);
-            return;
-        }
-
         // Single paragraph, like a question
         note = string.Join(" ", note.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
         if (note.Length > 500)
@@ -216,25 +207,18 @@ public class QuestionsBackend(IServiceProvider services) : DbServiceBase<AppDbCo
         dbQuestion.ResolvedAt ??= now;
         dbQuestion.ResolutionNote = note;
         await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        Invalidation.Defer(() => {
+            _ = ListOpen(roomId, default);
+            _ = ListResolved(roomId, default);
+            _ = GetResolution(roomId, index, default);
+        });
     }
 
     public virtual async Task Delete(QuestionsBackend_Delete command, CancellationToken cancellationToken = default)
     {
         var (roomId, index) = command;
         var context = CommandContext.GetCurrent();
-        if (Invalidation.IsActive) {
-            _ = Get(roomId, index, default);
-            _ = ListOpen(roomId, default);
-            _ = ListResolved(roomId, default);
-            _ = GetResolution(roomId, index, default);
-            _ = GetVoteCount(roomId, index, default);
-            _ = PseudoVotes(roomId, default);
-            var voterIds = context.Operation.Items.Get<string[]>("VoterIds") ?? [];
-            foreach (var voterId in voterIds)
-                _ = HasVote(roomId, index, voterId, default);
-            return;
-        }
-
         var dbContext = await DbHub.CreateOperationDbContext(cancellationToken).ConfigureAwait(false);
         await using var _1 = dbContext.ConfigureAwait(false);
 
@@ -256,6 +240,17 @@ public class QuestionsBackend(IServiceProvider services) : DbServiceBase<AppDbCo
         dbContext.Remove(dbQuestion);
         dbContext.RemoveRange(dbVotes);
         await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        context.Operation.Items.Set("VoterIds", dbVotes.Select(v => v.UserId).ToArray());
+        var voterIds = dbVotes.Select(v => v.UserId).ToArray();
+
+        Invalidation.Defer(() => {
+            _ = Get(roomId, index, default);
+            _ = ListOpen(roomId, default);
+            _ = ListResolved(roomId, default);
+            _ = GetResolution(roomId, index, default);
+            _ = GetVoteCount(roomId, index, default);
+            _ = PseudoVotes(roomId, default);
+            foreach (var voterId in voterIds)
+                _ = HasVote(roomId, index, voterId, default);
+        });
     }
 }

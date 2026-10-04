@@ -4,6 +4,7 @@ using TownHall.Db;
 
 namespace TownHall.Host.Services;
 
+[DeferredInvalidationMode(DeferredInvalidationMode.Replicated)]
 public class RoomsBackend(IServiceProvider services) : DbServiceBase<AppDbContext>(services), IRoomsBackend
 {
     public static readonly TimeSpan ResurrectionGracePeriod = TimeSpan.FromMinutes(10);
@@ -88,14 +89,6 @@ public class RoomsBackend(IServiceProvider services) : DbServiceBase<AppDbContex
     {
         var (ownerUserId, title, duration, isPrivate, link, description) = command;
         var context = CommandContext.GetCurrent();
-        if (Invalidation.IsActive) {
-            var roomId = context.Operation.Items.Get<string>("RoomId")!;
-            _ = Get(roomId, default);
-            _ = ListRoomIds(default);
-            _ = IsOwner(roomId, ownerUserId, default);
-            return null!;
-        }
-
         title = title.Trim();
         if (title.Length is < 1 or > 80)
             throw new ArgumentException("Title must be 1..80 characters long.");
@@ -128,18 +121,18 @@ public class RoomsBackend(IServiceProvider services) : DbServiceBase<AppDbContex
         dbContext.Add(dbRoom);
         dbContext.Add(new DbRoomOwner { RoomId = id, UserId = ownerUserId });
         await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        context.Operation.Items.Set("RoomId", id);
+        Invalidation.Defer(() => {
+            _ = Get(id, default);
+            _ = ListRoomIds(default);
+            _ = IsOwner(id, ownerUserId, default);
+        });
+
         return new Room(id, title, link, description, now, endsAt, now, RoomStatus.Paused, isPrivate);
     }
 
     public virtual async Task ClaimOwnership(RoomsBackend_ClaimOwnership command, CancellationToken cancellationToken = default)
     {
         var (roomId, userId, ownerToken) = command;
-        if (Invalidation.IsActive) {
-            _ = IsOwner(roomId, userId, default);
-            return;
-        }
-
         var dbContext = await DbHub.CreateOperationDbContext(cancellationToken).ConfigureAwait(false);
         await using var _1 = dbContext.ConfigureAwait(false);
 
@@ -155,16 +148,13 @@ public class RoomsBackend(IServiceProvider services) : DbServiceBase<AppDbContex
 
         dbContext.Add(new DbRoomOwner { RoomId = roomId, UserId = userId });
         await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        Invalidation.Defer(() => _ = IsOwner(roomId, userId, default));
     }
 
     public virtual async Task SetLive(RoomsBackend_SetLive command, CancellationToken cancellationToken = default)
     {
         var (roomId, live) = command;
-        if (Invalidation.IsActive) {
-            _ = Get(roomId, default);
-            return;
-        }
-
         var dbContext = await DbHub.CreateOperationDbContext(cancellationToken).ConfigureAwait(false);
         await using var _1 = dbContext.ConfigureAwait(false);
 
@@ -188,17 +178,13 @@ public class RoomsBackend(IServiceProvider services) : DbServiceBase<AppDbContex
             dbRoom.PausedAt = now.ToDateTime();
         }
         await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        Invalidation.Defer(() => _ = Get(roomId, default));
     }
 
     public virtual async Task SetIsPrivate(RoomsBackend_SetIsPrivate command, CancellationToken cancellationToken = default)
     {
         var (roomId, isPrivate) = command;
-        if (Invalidation.IsActive) {
-            _ = Get(roomId, default);
-            _ = ListRoomIds(default);
-            return;
-        }
-
         var dbContext = await DbHub.CreateOperationDbContext(cancellationToken).ConfigureAwait(false);
         await using var _1 = dbContext.ConfigureAwait(false);
 
@@ -211,16 +197,16 @@ public class RoomsBackend(IServiceProvider services) : DbServiceBase<AppDbContex
 
         dbRoom.IsPrivate = isPrivate;
         await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        Invalidation.Defer(() => {
+            _ = Get(roomId, default);
+            _ = ListRoomIds(default);
+        });
     }
 
     public virtual async Task SetTitle(RoomsBackend_SetTitle command, CancellationToken cancellationToken = default)
     {
         var (roomId, title) = command;
-        if (Invalidation.IsActive) {
-            _ = Get(roomId, default);
-            return;
-        }
-
         title = title.Trim();
         if (title.Length is < 1 or > 80)
             throw new ArgumentException("Title must be 1..80 characters long.");
@@ -232,16 +218,13 @@ public class RoomsBackend(IServiceProvider services) : DbServiceBase<AppDbContex
         var dbRoom = await dbContext.GetRoom(roomId, cancellationToken).ConfigureAwait(false);
         dbRoom.Title = title;
         await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        Invalidation.Defer(() => _ = Get(roomId, default));
     }
 
     public virtual async Task SetLink(RoomsBackend_SetLink command, CancellationToken cancellationToken = default)
     {
         var (roomId, link) = command;
-        if (Invalidation.IsActive) {
-            _ = Get(roomId, default);
-            return;
-        }
-
         link = NormalizeLink(link);
 
         var dbContext = await DbHub.CreateOperationDbContext(cancellationToken).ConfigureAwait(false);
@@ -250,16 +233,13 @@ public class RoomsBackend(IServiceProvider services) : DbServiceBase<AppDbContex
         var dbRoom = await dbContext.GetRoom(roomId, cancellationToken).ConfigureAwait(false);
         dbRoom.Link = link;
         await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        Invalidation.Defer(() => _ = Get(roomId, default));
     }
 
     public virtual async Task SetDescription(RoomsBackend_SetDescription command, CancellationToken cancellationToken = default)
     {
         var (roomId, description) = command;
-        if (Invalidation.IsActive) {
-            _ = Get(roomId, default);
-            return;
-        }
-
         description = NormalizeDescription(description);
 
         var dbContext = await DbHub.CreateOperationDbContext(cancellationToken).ConfigureAwait(false);
@@ -268,17 +248,13 @@ public class RoomsBackend(IServiceProvider services) : DbServiceBase<AppDbContex
         var dbRoom = await dbContext.GetRoom(roomId, cancellationToken).ConfigureAwait(false);
         dbRoom.Description = description;
         await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        Invalidation.Defer(() => _ = Get(roomId, default));
     }
 
     public virtual async Task AdjustDuration(RoomsBackend_AdjustDuration command, CancellationToken cancellationToken = default)
     {
         var (roomId, delta) = command;
-        if (Invalidation.IsActive) {
-            _ = Get(roomId, default);
-            _ = ListRoomIds(default);
-            return;
-        }
-
         var dbContext = await DbHub.CreateOperationDbContext(cancellationToken).ConfigureAwait(false);
         await using var _1 = dbContext.ConfigureAwait(false);
 
@@ -302,6 +278,11 @@ public class RoomsBackend(IServiceProvider services) : DbServiceBase<AppDbContex
             dbRoom.EndsAt = Moment.Max(refNow, Moment.Min(createdAt + MaxDuration, endsAt + delta)).ToDateTime();
         }
         await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        Invalidation.Defer(() => {
+            _ = Get(roomId, default);
+            _ = ListRoomIds(default);
+        });
     }
 
     // Private methods

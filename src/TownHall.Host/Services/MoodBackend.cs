@@ -4,6 +4,7 @@ using TownHall.Db;
 
 namespace TownHall.Host.Services;
 
+[DeferredInvalidationMode(DeferredInvalidationMode.Replicated)]
 public class MoodBackend(IServiceProvider services) : DbServiceBase<AppDbContext>(services), IMoodBackend
 {
     private IPresenceBackend Presence => field ??= Services.GetRequiredService<IPresenceBackend>();
@@ -51,12 +52,6 @@ public class MoodBackend(IServiceProvider services) : DbServiceBase<AppDbContext
     public virtual async Task SetMood(MoodBackend_Set command, CancellationToken cancellationToken = default)
     {
         var (roomId, userId, level) = command;
-        if (Invalidation.IsActive) {
-            _ = GetSummary(roomId, default);
-            _ = GetOwn(roomId, userId, default);
-            return;
-        }
-
         if (level is < 1 or > 5)
             throw new ArgumentException("Mood level must be in 1..5.");
 
@@ -76,5 +71,10 @@ public class MoodBackend(IServiceProvider services) : DbServiceBase<AppDbContext
         else
             dbMood.Level = level;
         await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        Invalidation.Defer(() => {
+            _ = GetSummary(roomId, default);
+            _ = GetOwn(roomId, userId, default);
+        });
     }
 }

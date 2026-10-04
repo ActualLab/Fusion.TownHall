@@ -4,6 +4,7 @@ using TownHall.Db;
 
 namespace TownHall.Host.Services;
 
+[DeferredInvalidationMode(DeferredInvalidationMode.Replicated)]
 public class UsersBackend(IServiceProvider services) : DbServiceBase<AppDbContext>(services), IUsersBackend
 {
     private const string IdAlphabet = "0123456789abcdefghijklmnopqrstuvwxyz";
@@ -74,9 +75,6 @@ public class UsersBackend(IServiceProvider services) : DbServiceBase<AppDbContex
 
     public virtual async Task<string> Create(UsersBackend_Create command, CancellationToken cancellationToken = default)
     {
-        if (Invalidation.IsActive)
-            return null!;
-
         var name = command.Name.Trim();
         if (name.Length is < 1 or > 30)
             name = NameGenerator.New(NextRandomString(8));
@@ -99,11 +97,6 @@ public class UsersBackend(IServiceProvider services) : DbServiceBase<AppDbContex
     public virtual async Task SetName(UsersBackend_SetName command, CancellationToken cancellationToken = default)
     {
         var (userId, name) = command;
-        if (Invalidation.IsActive) {
-            _ = Get(userId, default);
-            return;
-        }
-
         name = name.Trim();
         if (name.Length is < 1 or > 30)
             throw new ArgumentException("Name must be 1..30 characters long.");
@@ -115,16 +108,13 @@ public class UsersBackend(IServiceProvider services) : DbServiceBase<AppDbContex
             ?? throw new KeyNotFoundException("User not found.");
         dbUser.Name = name;
         await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        Invalidation.Defer(() => _ = Get(userId, default));
     }
 
     public virtual async Task LinkSession(UsersBackend_LinkSession command, CancellationToken cancellationToken = default)
     {
         var (sessionId, userId) = command;
-        if (Invalidation.IsActive) {
-            _ = GetUserIdBySession(sessionId, default);
-            return;
-        }
-
         var dbContext = await DbHub.CreateOperationDbContext(cancellationToken).ConfigureAwait(false);
         await using var _1 = dbContext.ConfigureAwait(false);
 
@@ -135,16 +125,13 @@ public class UsersBackend(IServiceProvider services) : DbServiceBase<AppDbContex
         else
             dbLink.UserId = userId;
         await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        Invalidation.Defer(() => _ = GetUserIdBySession(sessionId, default));
     }
 
     public virtual async Task UnlinkSession(UsersBackend_UnlinkSession command, CancellationToken cancellationToken = default)
     {
         var sessionId = command.SessionId;
-        if (Invalidation.IsActive) {
-            _ = GetUserIdBySession(sessionId, default);
-            return;
-        }
-
         var dbContext = await DbHub.CreateOperationDbContext(cancellationToken).ConfigureAwait(false);
         await using var _1 = dbContext.ConfigureAwait(false);
 
@@ -155,13 +142,12 @@ public class UsersBackend(IServiceProvider services) : DbServiceBase<AppDbContex
 
         dbContext.Remove(dbLink);
         await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        Invalidation.Defer(() => _ = GetUserIdBySession(sessionId, default));
     }
 
     public virtual async Task AddCredential(UsersBackend_AddCredential command, CancellationToken cancellationToken = default)
     {
-        if (Invalidation.IsActive)
-            return;
-
         var (credentialId, userId, publicKey, signCount, userHandle) = command;
         var dbContext = await DbHub.CreateOperationDbContext(cancellationToken).ConfigureAwait(false);
         await using var _1 = dbContext.ConfigureAwait(false);
@@ -179,9 +165,6 @@ public class UsersBackend(IServiceProvider services) : DbServiceBase<AppDbContex
 
     public virtual async Task UpdateSignCount(UsersBackend_UpdateSignCount command, CancellationToken cancellationToken = default)
     {
-        if (Invalidation.IsActive)
-            return;
-
         var (credentialId, signCount) = command;
         var dbContext = await DbHub.CreateOperationDbContext(cancellationToken).ConfigureAwait(false);
         await using var _1 = dbContext.ConfigureAwait(false);

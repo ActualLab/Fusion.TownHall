@@ -12,7 +12,9 @@
 
 <MudText Class="mb-6" Typo="Typo.body1">
     A live-audience Q&amp;A and mood tracker built with
-    <MudLink Href="https://github.com/ActualLab/Fusion" Target="_blank" Typo="Typo.body1">Fusion</MudLink>.
+    <MudTooltip Text="@FusionVersion">
+        <MudLink Href="https://github.com/ActualLab/Fusion" Target="_blank" Typo="Typo.body1">Fusion</MudLink>
+    </MudTooltip>.
     Create a town hall, share its link, and let your audience post and upvote questions while the
     room's mood updates live. The full source is
     <MudLink Href="https://github.com/ActualLab/Fusion.TownHall" Target="_blank" Typo="Typo.body1">on GitHub</MudLink>.
@@ -92,6 +94,9 @@ else {
 }
 
 @code {
+    private static readonly string FusionVersion =
+        $"ActualLab.Fusion.dll version: {typeof(IComputed).Assembly.GetName().Version}";
+
     private string _title = "";
     private string _link = "";
     private string _description = "";

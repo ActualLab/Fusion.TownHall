@@ -2,10 +2,13 @@
 <Project ToolsVersion="latest" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <!-- Constants -->
   <PropertyGroup>
-    <ActualLabFusionVersion>15.1.24</ActualLabFusionVersion>
-    <AspNetCoreVersion>[10.0.9,)</AspNetCoreVersion>
+    <ActualLabFusionVersion>15.1.26</ActualLabFusionVersion>
+    <AspNetCoreVersion>[11.0.0,)</AspNetCoreVersion>
     <BlazorVersion>$(AspNetCoreVersion)</BlazorVersion>
-    <EntityFrameworkCoreVersion>[10.0.9,)</EntityFrameworkCoreVersion>
+    <!-- EF Core trails AspNetCoreVersion: efcore.pg has no 11.0.0 release yet, and its RC3
+         exact-pins EF Core to 11.0.0-rc.3.26522.148, so every EF package here has to stay on that build. -->
+    <EntityFrameworkCoreVersion>[11.0.0-rc.3.26522.148,)</EntityFrameworkCoreVersion>
+    <EntityFrameworkCoreNpgsqlVersion>[11.0.0-rc.3,)</EntityFrameworkCoreNpgsqlVersion>
     <MudBlazorVersion>9.7.0</MudBlazorVersion>
   </PropertyGroup>
   <!-- Fusion packages -->
@@ -28,7 +31,7 @@
     <PackageVersion Include="Fido2" Version="4.0.1" />
     <PackageVersion Include="Fido2.AspNet" Version="4.0.1" />
     <PackageVersion Include="MudBlazor" Version="$(MudBlazorVersion)" />
-    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="[10.0.3,)" />
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="$(EntityFrameworkCoreNpgsqlVersion)" />
   </ItemGroup>
   <!-- Observability: .NET Aspire + OpenTelemetry -->
   <ItemGroup>

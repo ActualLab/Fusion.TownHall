@@ -5,7 +5,7 @@
 # solution, which keeps the build fast. This mirrors the Fusion.Samples web_blazor
 # target and is used by deploy/docker-compose.prod.yml.
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS web_build
+FROM mcr.microsoft.com/dotnet/sdk:11.0 AS web_build
 # python3 + libatomic1 are needed by the WASM native relinking during Release publish
 RUN apt-get update \
     && apt-get install -y --no-install-recommends python3 libatomic1 \
@@ -17,7 +17,7 @@ COPY ["*.props", "."]
 COPY ["src/", "src/"]
 RUN dotnet publish -c:Release -o /publish src/TownHall.Host/TownHall.Host.csproj
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS web_townhall
+FROM mcr.microsoft.com/dotnet/aspnet:11.0 AS web_townhall
 ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=true
 ENV Logging__Console__FormatterName=
 WORKDIR /app

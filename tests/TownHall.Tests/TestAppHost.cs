@@ -1,4 +1,5 @@
 using System.Data;
+using ActualLab.Compression;
 using ActualLab.Fusion.EntityFramework;
 using ActualLab.Fusion.EntityFramework.Npgsql;
 using ActualLab.Fusion.EntityFramework.Operations;
@@ -64,8 +65,7 @@ public sealed class TestAppHost : IAsyncLifetime
     private static void ConfigureServices(IServiceCollection services, string connectionString)
     {
         // Mirrors the service configuration in TownHall.Host/Program.cs,
-        // including the statics ClientStartup.ConfigureSharedServices sets
-        RpcSerializationFormatResolver.Default = new("msgpack6c-lz4");
+        // including the wire formats ClientStartup.ConfigureSharedServices adds
         DbOperationScope.Options.DefaultIsolationLevel = IsolationLevel.RepeatableRead;
         services.AddDbContextServices<AppDbContext>(db => {
             db.AddOperations(operations => operations.AddNpgsqlOperationLogWatcher());
@@ -82,6 +82,10 @@ public sealed class TestAppHost : IAsyncLifetime
         });
 
         var fusion = services.AddFusion(RpcServiceMode.Server, true);
+        fusion.Rpc.ConfigureWireFormats(f => {
+            f.AddCompressedVariants("lz4", LZ4ByteCodec.Default);
+            f.DefaultFormat = f["msgpack6c-lz4"];
+        });
         fusion.AddWebServer();
         fusion.AddOperationReprocessor();
         // Backend (local); passkey/IAuth is omitted here - tests sign in via the backend directly.
@@ -106,6 +110,10 @@ public sealed class TestAppHost : IAsyncLifetime
         var services = new ServiceCollection();
         services.AddLogging();
         var fusion = services.AddFusion();
+        fusion.Rpc.ConfigureWireFormats(f => {
+            f.AddCompressedVariants("lz4", LZ4ByteCodec.Default);
+            f.DefaultFormat = f["msgpack6c-lz4"];
+        });
         fusion.Rpc.AddWebSocketClient(BaseUrl);
         fusion.AddClient<IUsers>();
         fusion.AddClient<IRooms>();

@@ -1,3 +1,4 @@
+using ActualLab.Compression;
 using ActualLab.Fusion.Blazor;
 using ActualLab.Fusion.UI;
 using ActualLab.Rpc;
@@ -34,10 +35,12 @@ public static class ClientStartup
     // On the server, fusion.AddBlazor() must follow services.AddServerSideBlazor().
     public static void ConfigureSharedServices(IServiceCollection services)
     {
-        // The contracts carry MessagePack attributes only, so RPC must not default to MemoryPack
-        RpcSerializationFormatResolver.Default = new("msgpack6c-lz4");
-
         var fusion = services.AddFusion();
+        // Compact MessagePack w/ LZ4-compressed server-to-client frames; the server adds the same formats
+        fusion.Rpc.ConfigureWireFormats(f => {
+            f.AddCompressedVariants("lz4", LZ4ByteCodec.Default);
+            f.DefaultFormat = f["msgpack6c-lz4"];
+        });
         fusion.AddBlazor();
         services.AddScoped<IUpdateDelayer>(c => new UpdateDelayer(c.UIActionTracker(), 0.25)); // 0.25s
         services.AddScoped<TownHall.UI.Services.LayoutState>();
